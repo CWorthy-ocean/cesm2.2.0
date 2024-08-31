@@ -1,6 +1,5 @@
 # Ignore python bytecode files
 *.pyc
-buildlib.*c
 
 # Ignore emacs backup files
 *~
@@ -18,4 +17,3 @@ scripts/Tools/JENKINS*
 /scripts/cases/
 
 #Ignore nuopc driver available seperatly
-src/drivers/nuopc
