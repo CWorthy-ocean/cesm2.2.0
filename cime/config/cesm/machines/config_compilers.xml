@@ -312,7 +312,7 @@ using a fortran linker.
     <base> -O0 </base>
   </FFLAGS_NOOPT>
   <FIXEDFLAGS>
-    <base> -fixed  </base>
+    <base> -fixed -132 </base>
   </FIXEDFLAGS>
   <FREEFLAGS>
     <base> -free </base>
