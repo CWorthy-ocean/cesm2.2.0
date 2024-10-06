@@ -6423,6 +6423,47 @@ Default: 7.1429e6
 </entry>
 
 <entry
+id="alk_forcing_shr_stream_year_first"
+type="integer"
+category="Forcing (Ecosystem)"
+group="ecosys_forcing_data_nml" >
+Default: 1999
+</entry>       
+    
+<entry
+id="alk_forcing_shr_stream_year_last"
+type="integer"
+category="Forcing (Ecosystem)"
+group="ecosys_forcing_data_nml" >
+Default: 2019
+</entry>     
+    
+<entry
+id="alk_forcing_shr_stream_year_align"
+type="integer"
+category="Forcing (Ecosystem)"
+group="ecosys_forcing_data_nml" >
+Default: 347
+</entry>         
+
+<entry
+id="alk_forcing_shr_stream_file"
+type="char*256"
+category="Forcing (Ecosystem)"
+group="ecosys_forcing_data_nml" >
+Default: depends on experiment.
+</entry>             
+
+    
+<entry
+id="alk_forcing_shr_stream_scale_factor"
+type="real"
+category="Forcing (Ecosystem)"
+group="ecosys_forcing_data_nml" >
+Default: 1.0e8
+</entry>  
+
+<entry
 id="riv_flux_shr_stream_file"
 type="char*256"
 category="Forcing (Ecosystem)"
