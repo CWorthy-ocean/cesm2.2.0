@@ -9,7 +9,7 @@
 !  heat flux.
 !
 ! !REVISION HISTORY:
-!  SVN:$Id$
+!  SVN:$Id: forcing_shf.F90 84910 2017-05-09 14:52:59Z jet $
 !
 ! !USES:
 
@@ -25,6 +25,8 @@
    use time_management
    use prognostic
    use exit_mod
+!   use ice, only: tfreez
+   use shr_frz_mod, only: shr_frz_freezetemp
 
    implicit none
    private
@@ -34,7 +36,8 @@
 ! !PUBLIC MEMBER FUNCTIONS:
 
    public :: init_shf,      &
-             set_shf        
+             set_shf,       &
+             tfreez2        
 
 ! !PUBLIC DATA MEMBERS:
 
@@ -1832,6 +1835,8 @@
    real (r8), dimension(nx_block,ny_block,max_blocks_clinic) :: &
       WORK1              !  work array
 
+   real (r8), dimension(nx_block,ny_block) :: &
+      TFZ
 
 
 !-----------------------------------------------------------------------
@@ -1893,10 +1898,13 @@
 !
 !----------------------------------------------------------------------
 
+      call tfreez2(TFZ, TRACER(:,:,1,2,curtime,iblock))     
+
       where (KMT(:,:,iblock) > 0)
          SHF_COMP(:,:,iblock,shf_comp_srest) = shf_strong_restore*    &
                              (c1-OCN_WGT(:,:,iblock))*                &
-                             (SHF_DATA(:,:,iblock,shf_data_sst,now) - &
+                             (TFZ -                                   &
+!                            (SHF_DATA(:,:,iblock,shf_data_sst,now) - &
                               TRACER(:,:,1,1,curtime,iblock))
       endwhere
 
@@ -2269,6 +2277,47 @@
 !EOC
 
  end subroutine ocean_weights
+
+!***********************************************************************
+!BOP
+! !IROUTINE:
+! !INTERFACE:
+
+ subroutine tfreez2(TFRZ,SALT)
+
+! !DESCRIPTION:
+!  This function computes the freezing point of salt water.
+!
+! !REVISION HISTORY:
+!  same as module
+
+! !INPUT PARAMETERS:
+
+   real (r8), dimension(nx_block,ny_block), intent(in) :: &
+      SALT                ! salinity in model units (g/g)
+
+! !OUTPUT PARAMETERS:
+
+   real (r8), dimension(nx_block,ny_block), intent(out) :: &
+      TFRZ                ! freezing temperature of water in deg C
+
+!EOP
+!BOC
+!-----------------------------------------------------------------------
+!-----------------------------------------------------------------------
+!
+!  call shr function to return freezing temp based on drv namelist choice
+!  of minus1p8, linear_salt, or mushy algorithms.
+!
+!-----------------------------------------------------------------------
+
+   TFRZ(:,:) = shr_frz_freezetemp(SALT(:,:)*salt_to_ppt)
+
+!-----------------------------------------------------------------------
+!EOC
+
+ end subroutine tfreez2
+
 
  end module forcing_shf
 

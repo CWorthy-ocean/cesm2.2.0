@@ -33,7 +33,8 @@
    use broadcast, only: broadcast_scalar
    use communicate, only: my_task, master_task
    use grid, only: FCOR, DZU, HUR, KMU, KMT, sfc_layer_type, l1Ddyn,         &
-       sfc_layer_varthick, partial_bottom_cells, dz, DZT, CALCT, dzw, dzr
+       sfc_layer_varthick, partial_bottom_cells, dz, DZT, CALCT, dzw, dzr,   &
+       zt, zw, HT
    use advection, only: advu, advt, comp_flux_vel_ghost
    use pressure_grad, only: lpressure_avg, gradp
    use horizontal_mix, only: hdiffu, hdifft, iso_impvmixt_tavg
@@ -76,11 +77,12 @@
 
 ! !PUBLIC MEMBER FUNCTIONS:
 
-   public :: init_baroclinic,          &
-             baroclinic_driver,        &
-             baroclinic_correct_adjust,&
-             tracer_accumulate_tavg,   &
-             accumulate_tavg_var_tend
+   public :: init_baroclinic,              &
+             baroclinic_driver,            &
+             baroclinic_correct_adjust,    &
+             tracer_accumulate_tavg,       &
+             accumulate_tavg_var_tend,     &
+             accumulate_tavg_N2_zavg_200m
 
 
    integer (int_kind), public :: &
@@ -150,7 +152,8 @@
       tavg_ST,           &! tavg id for salt*temperature
       tavg_RHO,          &! tavg id for in-situ density
       tavg_RHO_VINT,     &! tavg id for vertical integral of in-situ density
-      tavg_UV             ! tavg id for u times v
+      tavg_UV,           &! tavg id for u times v
+      tavg_N2_zavg_200m   ! tavg id for buoyancy frequency averaged over top 200m
 
 !-----------------------------------------------------------------------
 !
@@ -504,6 +507,11 @@
                           units='gram/centimeter^3', grid_loc='3111',  &
                           coordinates='TLONG TLAT z_t time')
 
+   call define_tavg_field(tavg_N2_zavg_200m,'N2_zavg_200m',2,                         &
+                          long_name='buoyancy frequency averaged over the top 200 m', &
+                          units='s^-2', grid_loc='2110',                              &
+                          coordinates='TLONG TLAT time')
+
    call define_tavg_field(tavg_RHO_VINT,'RHO_VINT',2,                  &
                           long_name='Vertical Integral of In-Situ Density', &
                           units='gram/centimeter^2', grid_loc='2110',  &
@@ -846,6 +854,16 @@
 
       enddo  ! k loop
 
+
+!-----------------------------------------------------------------------
+!
+!     compute buoyancy frequency averaged over the top 200 m
+!
+!-----------------------------------------------------------------------
+
+      call accumulate_tavg_N2_zavg_200m(RHO(:,:,:,curtime,iblock),   &
+                                        PSURF(:,:,curtime,iblock),   &
+                                        this_block)
 
 !-----------------------------------------------------------------------
 !
@@ -1490,7 +1508,7 @@
 
    use time_management, only: robert_newtime, robert_curtime, lrf_nonzero_newtime
    use passive_tracers, only: tavg_var_tend, tavg_var_tend_zint_100m, tavg_var_rf_tend
-   use grid, only: zw, RCALCT_OPEN_OCEAN_3D
+   use grid, only: RCALCT_OPEN_OCEAN_3D
 
 ! !INPUT PARAMETERS:
 
@@ -2416,8 +2434,156 @@
 
  end subroutine tracer_accumulate_tavg
 
+!***********************************************************************
+!BOP
+! !IROUTINE: accumulate_tavg_N2_zavg_200m
+
+! !INTERFACE:
+
+ subroutine accumulate_tavg_N2_zavg_200m (RHOCUR,PSURF,this_block)
 
 !***********************************************************************
+! !INPUT PARAMETERS:
+
+   type (block), intent(in) :: &
+      this_block          ! block information for this block
+
+   real (r8), dimension(nx_block,ny_block,km), intent(in) :: &
+      RHOCUR     ! density at current time level, block iblock
+
+   real (r8), dimension(nx_block,ny_block), intent(in) :: &
+      PSURF      !         at current time level, block iblock
+
+!EOP
+!BOC
+!-----------------------------------------------------------------------
+!
+!  local variables:
+!
+!-----------------------------------------------------------------------
+
+   integer (int_kind) :: &
+     ib, ie, jb, je,     &! domain limits
+     bid                  ! local block address
+
+   integer (int_kind) :: &
+      i, j,              &  ! horizontal loop indices
+      k                     ! vertical level index
+
+   integer (int_kind) :: zt_200m_levs
+
+   real (r8) :: &
+      ztop                 ! depth of top of cell
+
+   real (r8), dimension(:,:,:), allocatable :: WORK ! local work space
+
+   real (r8), dimension(nx_block,ny_block) :: &
+        WORK1, WORK2, WORK3, WORK4, WORK5
+
+!-----------------------------------------------------------------------
+!
+!  Compute Brunt-Vaisala squared:
+!
+!-----------------------------------------------------------------------
+
+   bid = this_block%local_id
+   jb  = this_block%jb
+   je  = this_block%je
+   ib  = this_block%ib
+   ie  = this_block%ie
+
+   zt_200m_levs = count(zt < 200.0e2_r8)
+
+   allocate  (WORK(nx_block,ny_block,zt_200m_levs))
+
+   do k = 1,zt_200m_levs
+
+       WORK1 = RHOCUR(:,:,k)
+
+       if (k == 1 ) then
+          WORK2 = RHOCUR(:,:,k)
+       else
+          WORK2 = p5*(RHOCUR(:,:,k-1)+RHOCUR(:,:,k))
+       endif
+
+       if (k == km) then
+         WORK3 = RHOCUR(:,:,k)
+       else
+         do j=jb,je
+           do i=ib,ie
+             if (k < KMT(i,j,bid)) then
+               WORK3(i,j) = p5*(RHOCUR(i,j,k) + RHOCUR(i,j,k+1))
+             else
+               WORK3(i,j) = RHOCUR(i,j,k)
+             endif
+           end do
+         end do
+       endif
+
+       if (partial_bottom_cells) then
+         do j=jb,je
+           do i=ib,ie
+              if (k <= KMT(i,j,bid)) then
+                WORK(i,j,k) = (-grav / WORK1(i,j)) * (WORK2(i,j)-WORK3(i,j)) / DZT(i,j,k,bid) ! -g/rho * drho/dz
+              else
+                WORK(i,j,k) = c0
+              endif
+           end do
+         end do
+       else
+         do j=jb,je
+           do i=ib,ie
+              if (k <= KMT(i,j,bid)) then
+                WORK(i,j,k) = (-grav / WORK1(i,j)) * (WORK2(i,j)-WORK3(i,j)) / dz(k) ! -g/rho * drho/dz
+              else
+                WORK(i,j,k) = c0
+              endif
+           end do
+         end do
+       endif
+
+  enddo  ! k loop
+
+!-----------------------------------------------------------------------
+!
+!  Now compute the average over the top 200 m:
+!
+!-----------------------------------------------------------------------
+
+  WORK5 = c0
+
+  do k = 1,zt_200m_levs
+
+    ztop = c0
+    if (k > 1) ztop = zw(k-1)
+    if (ztop < 200.0e2_r8) then
+      if (sfc_layer_type == sfc_layer_varthick .and. k == 1) then
+        WORK5 = WORK5 + merge((dz(k)+PSURF(:,:)/grav) &
+                             * WORK(:,:,k), c0, k<=KMT(:,:,bid))
+      else
+        if (partial_bottom_cells) then
+          WORK5 = WORK5 + merge(min(200.0e2_r8 - ztop, DZT(:,:,k,bid)) &
+                      * WORK(:,:,k), c0, k<=KMT(:,:,bid))
+        else
+          WORK5 = WORK5 + merge(min(200.0e2_r8 - ztop, dz(k)) &
+                               * WORK(:,:,k), c0, k<=KMT(:,:,bid))
+        endif
+      endif
+    endif
+
+  enddo  ! k loop
+
+  WORK5 = WORK5 / min(200.0e2_r8, HT(:,:,bid))
+
+  call accumulate_tavg_field(WORK5,tavg_N2_zavg_200m,bid,1)
+
+  deallocate (WORK)
+
+!-----------------------------------------------------------------------
+!EOC
+
+ end subroutine accumulate_tavg_N2_zavg_200m
+
 
  end module baroclinic
 

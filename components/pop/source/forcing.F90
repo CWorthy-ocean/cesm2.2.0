@@ -73,8 +73,10 @@
       tavg_SFWF,         &! tavg_id for surface freshwater flux
       tavg_SFWF_WRST,    &! tavg_id for weak restoring freshwater flux
       tavg_TAUX,         &! tavg_id for wind stress in X direction
+      tavg_TAUX_2,       &! tavg_id for wind stress in X direction
       tavg_TAUX2,        &! tavg_id for wind stress**2 in X direction
       tavg_TAUY,         &! tavg_id for wind stress in Y direction
+      tavg_TAUY_2,       &! tavg_id for wind stress in Y direction
       tavg_TAUY2,        &! tavg_id for wind stress**2 in Y direction
       tavg_FW,           &! tavg_id for freshwater flux
       tavg_TFW_T,        &! tavg_id for T flux due to freshwater flux
@@ -203,12 +205,22 @@
                           units='dyne/centimeter^2', grid_loc='2220', &
                           coordinates='ULONG ULAT time')
 
+   call define_tavg_field(tavg_TAUX_2,'TAUX_2',2,                     &
+                          long_name='Windstress in grid-x direction', &
+                          units='dyne/centimeter^2', grid_loc='2220', &
+                          coordinates='ULONG ULAT time')
+
    call define_tavg_field(tavg_TAUX2,'TAUX2',2,                         &
                           long_name='Windstress**2 in grid-x direction', &
                           units='dyne^2/centimeter^4', grid_loc='2220', &
                           coordinates='ULONG ULAT time')
 
    call define_tavg_field(tavg_TAUY,'TAUY',2,                         &
+                          long_name='Windstress in grid-y direction', &
+                          units='dyne/centimeter^2', grid_loc='2220', &
+                          coordinates='ULONG ULAT time')
+
+   call define_tavg_field(tavg_TAUY_2,'TAUY_2',2,                     &
                           long_name='Windstress in grid-y direction', &
                           units='dyne/centimeter^2', grid_loc='2220', &
                           coordinates='ULONG ULAT time')
@@ -571,8 +583,10 @@
       endif
 
       call accumulate_tavg_field(SMF(:,:,1,iblock), tavg_TAUX,iblock,1)
+      call accumulate_tavg_field(SMF(:,:,1,iblock), tavg_TAUX_2,iblock,1)
       call accumulate_tavg_field(SMF(:,:,1,iblock)**2, tavg_TAUX2,iblock,1)
       call accumulate_tavg_field(SMF(:,:,2,iblock), tavg_TAUY,iblock,1)
+      call accumulate_tavg_field(SMF(:,:,2,iblock), tavg_TAUY_2,iblock,1)
       call accumulate_tavg_field(SMF(:,:,2,iblock)**2, tavg_TAUY2,iblock,1)
       call accumulate_tavg_field(FW (:,:,iblock), tavg_FW,iblock,1)
       call accumulate_tavg_field(TFW(:,:,1,iblock)/hflux_factor, tavg_TFW_T,iblock,1)
