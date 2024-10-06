@@ -168,6 +168,13 @@ module ecosys_forcing_mod
   integer(int_kind)   :: ndep_shr_stream_year_align   ! align ndep_shr_stream_year_first with this model year
   character(char_len) :: ndep_shr_stream_file         ! file containing domain and input data
   real(r8)            :: ndep_shr_stream_scale_factor ! unit conversion factor
+
+  integer(int_kind)   :: alk_forcing_shr_stream_year_first   ! first year in stream to use
+  integer(int_kind)   :: alk_forcing_shr_stream_year_last    ! last year in stream to use
+  integer(int_kind)   :: alk_forcing_shr_stream_year_align   ! align ndep_shr_stream_year_first with this model year
+  character(char_len) :: alk_forcing_shr_stream_file         ! file containing domain and input data
+  real(r8)            :: alk_forcing_shr_stream_scale_factor ! unit conversion factor
+
   character(char_len) :: gas_flux_forcing_opt         ! option for forcing gas fluxes
   character(char_len) :: gas_flux_forcing_file        ! file containing gas flux forcing fields
   type(tracer_read)   :: gas_flux_fice                ! ice fraction for gas fluxes
@@ -393,6 +400,9 @@ contains
          ndep_shr_stream_year_first, ndep_shr_stream_year_last,               &
          ndep_shr_stream_year_align, ndep_shr_stream_file,                    &
          ndep_shr_stream_scale_factor,                                        &
+         alk_forcing_shr_stream_year_first,     &
+         alk_forcing_shr_stream_year_last, alk_forcing_shr_stream_year_align, &
+         alk_forcing_shr_stream_file, alk_forcing_shr_stream_scale_factor,    &
          riv_flux_shr_stream_file, riv_flux_shr_stream_year_first,            &
          riv_flux_shr_stream_year_last, riv_flux_shr_stream_year_align,       &
          riv_flux_din_file_varname, riv_flux_din_scale_factor,                &
@@ -451,6 +461,13 @@ contains
     ndep_shr_stream_year_align = 1
     ndep_shr_stream_file       = 'unknown'
     ndep_shr_stream_scale_factor = c1
+
+    alk_forcing_shr_stream_year_first = 1999
+    alk_forcing_shr_stream_year_last = 2019
+    alk_forcing_shr_stream_year_align = 347
+    alk_forcing_shr_stream_file = '/glade/work/mclong/o-nets/data/forcing/alk-forcing.001.nc'
+    alk_forcing_shr_stream_scale_factor = 1.0e8_r8 ! convert from mol/m^2/s to nmol/cm^2/s
+
     riv_flux_shr_stream_file         = 'unknown'
     riv_flux_shr_stream_year_first   = 1900
     riv_flux_shr_stream_year_last    = 1900
@@ -859,6 +876,19 @@ contains
             call document(subname, err_msg)
             call exit_POP(sigAbort, 'Stopping in ' // subname)
           end if
+
+        case ('Alk Flux')
+          call surface_flux_forcings(n)%add_forcing_field(field_source='shr_stream',       &
+               strdata_inputlist_ptr=surface_strdata_inputlist_ptr,                        &
+               marbl_varname=marbl_varname,                                                &
+               field_units=units,                                                          &
+               unit_conv_factor=alk_forcing_shr_stream_scale_factor,                       &
+               file_varname='alk_forcing',                                                 &
+               year_first=alk_forcing_shr_stream_year_first,                               &
+               year_last=alk_forcing_shr_stream_year_last,                                 &
+               year_align=alk_forcing_shr_stream_year_align,                               &
+               filename=alk_forcing_shr_stream_file,                                       &
+               rank=2, id=n)          
 
         case ('external C Flux')
           ext_C_flux_ind = n

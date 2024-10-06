@@ -216,6 +216,7 @@ module marbl_settings_mod
   logical(log_kind), target :: lecovars_full_depth_tavg       ! If .false., MARBL will recommend truncating the column for some diagnostics
   logical(log_kind), target :: lflux_gas_o2                   ! controls which portion of code are executed usefull for debugging
   logical(log_kind), target :: lflux_gas_co2                  ! controls which portion of code are executed usefull for debugging
+  logical(log_kind), target :: lalk_forcing_apply_flux        ! apply/don't apply alkalinity forcing
   logical(log_kind), target :: lcompute_nhx_surface_emis      ! control if NHx emissions are computed
   logical(log_kind), target :: lvariable_PtoC                 ! control if PtoC ratios in autotroph_settings vary
   logical(log_kind), target :: ladjust_bury_coeff             ! control if bury coefficients are adjusted (rather than constant)
@@ -375,6 +376,7 @@ contains
     lecovars_full_depth_tavg      = .false.         ! CESM USERS - DO NOT CHANGE HERE! POP calls put_setting() for this var, see CESM NOTE above
     lflux_gas_o2                  = .true.          ! CESM USERS - DO NOT CHANGE HERE! POP calls put_setting() for this var, see CESM NOTE above
     lflux_gas_co2                 = .true.          ! CESM USERS - DO NOT CHANGE HERE! POP calls put_setting() for this var, see CESM NOTE above
+    lalk_forcing_apply_flux       = .false.         ! CESM USERS - DO NOT CHANGE HERE! POP calls put_setting() for this var, see CESM NOTE above
     lcompute_nhx_surface_emis     = .true.          ! CESM USERS - DO NOT CHANGE HERE! POP calls put_setting() for this var, see CESM NOTE above
     lvariable_PtoC                = .true.          ! CESM USERS - DO NOT CHANGE HERE! POP calls put_setting() for this var, see CESM NOTE above
     init_bury_coeff_opt           = 'settings_file' ! CESM USERS - DO NOT CHANGE HERE! POP calls put_setting() for this var, see CESM NOTE above
@@ -627,6 +629,15 @@ contains
     units     = 'unitless'
     datatype  = 'logical'
     lptr      => lflux_gas_co2
+    call this%add_var(sname, lname, units, datatype, category,       &
+                        marbl_status_log, lptr=lptr)
+    call check_and_log_add_var_error(marbl_status_log, sname, subname, labort_marbl_loc)
+
+    sname     = 'lalk_forcing_apply_flux'
+    lname     = 'Apply alkalinity flux'
+    units     = 'unitless'
+    datatype  = 'logical'
+    lptr      => lalk_forcing_apply_flux
     call this%add_var(sname, lname, units, datatype, category,       &
                         marbl_status_log, lptr=lptr)
     call check_and_log_add_var_error(marbl_status_log, sname, subname, labort_marbl_loc)

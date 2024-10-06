@@ -119,13 +119,13 @@ contains
     logical (log_kind) :: POP_strdata_type_match
 
     POP_strdata_type_match = &
-      strdata_input_var1%file_name     == strdata_input_var2%file_name  .and. &
-      strdata_input_var1%year_first    == strdata_input_var2%year_first .and. &
-      strdata_input_var1%year_last     == strdata_input_var2%year_last  .and. &
-      strdata_input_var1%year_align    == strdata_input_var2%year_align .and. &
-      strdata_input_var1%depth_flag .eqv. strdata_input_var2%depth_flag .and. &
-      strdata_input_var1%tintalgo      == strdata_input_var2%tintalgo   .and. &
-      strdata_input_var1%taxMode       == strdata_input_var2%taxMode
+      (trim(strdata_input_var1%file_name) == trim(strdata_input_var2%file_name))  .and. &
+      (strdata_input_var1%year_first      == strdata_input_var2%year_first)       .and. &
+      (strdata_input_var1%year_last       == strdata_input_var2%year_last)        .and. &
+      (strdata_input_var1%year_align      == strdata_input_var2%year_align)       .and. &
+      (strdata_input_var1%depth_flag   .eqv. strdata_input_var2%depth_flag)       .and. &
+      (strdata_input_var1%tintalgo        == strdata_input_var2%tintalgo)         .and. &
+      (strdata_input_var1%taxMode         == strdata_input_var2%taxMode)      
 
   end function POP_strdata_type_match
 

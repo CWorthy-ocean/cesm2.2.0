@@ -134,6 +134,7 @@ contains
          iron_flux_in => surface_flux_forcings(surface_flux_forcing_ind%iron_flux_id)%field_0d,    &
          nox_flux     => surface_flux_forcings(surface_flux_forcing_ind%nox_flux_id)%field_0d,     &
          nhy_flux     => surface_flux_forcings(surface_flux_forcing_ind%nhy_flux_id)%field_0d,     &
+         alk_flux     => surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d,     &
 
          piston_velocity      => surface_flux_internal%piston_velocity(:),                       &
          flux_co2             => surface_flux_internal%flux_co2(:),                              &
@@ -412,7 +413,7 @@ contains
     !-----------------------------------------------------------------------
 
     surface_fluxes(:, alk_ind)         = surface_fluxes(:, alk_ind) + &
-         surface_fluxes(:, nh4_ind) - surface_fluxes(:, no3_ind)
+         surface_fluxes(:, nh4_ind) - surface_fluxes(:, no3_ind) + alk_flux(:)
     surface_fluxes(:, alk_alt_co2_ind) = surface_fluxes(:, alk_alt_co2_ind) + &
          surface_fluxes(:, nh4_ind) - surface_fluxes(:, no3_ind)
 

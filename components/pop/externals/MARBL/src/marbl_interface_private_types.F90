@@ -386,6 +386,7 @@ module marbl_interface_private_types
      integer(int_kind) :: iron_flux_id         = 0
      integer(int_kind) :: nox_flux_id          = 0
      integer(int_kind) :: nhy_flux_id          = 0
+     integer(int_kind) :: alk_flux_id          = 0
      integer(int_kind) :: ext_C_flux_id        = 0
      integer(int_kind) :: ext_P_flux_id        = 0
      integer(int_kind) :: ext_Si_flux_id       = 0
@@ -467,6 +468,7 @@ module marbl_interface_private_types
      integer(int_kind) :: DUST_FLUX
      integer(int_kind) :: NOx_FLUX
      integer(int_kind) :: NHy_FLUX
+     integer(int_kind) :: ALK_FLUX
      integer(int_kind) :: NHx_SURFACE_EMIS
 
      integer(int_kind) :: CISO_DI13C_GAS_FLUX       ! di13c flux
@@ -1631,7 +1633,7 @@ contains
   !*****************************************************************************
 
   subroutine surface_flux_forcing_index_constructor(this, ciso_on, lflux_gas_o2,   &
-             lflux_gas_co2, ladjust_bury_coeff, num_surface_flux_forcing_fields)
+             lflux_gas_co2, ladjust_bury_coeff, lalk_forcing_apply_flux, num_surface_flux_forcing_fields)
 
     ! This subroutine sets the surface forcing indices, which are used to
     ! determine what forcing fields are required from the driver.
@@ -1641,6 +1643,7 @@ contains
     logical,                                         intent(in)  :: lflux_gas_o2
     logical,                                         intent(in)  :: lflux_gas_co2
     logical,                                         intent(in)  :: ladjust_bury_coeff
+    logical,                                         intent(in)  :: lalk_forcing_apply_flux
     integer,                                         intent(out) :: num_surface_flux_forcing_fields
 
     associate(forcing_cnt => num_surface_flux_forcing_fields)
@@ -1682,6 +1685,12 @@ contains
       ! NHy Flux
       forcing_cnt = forcing_cnt + 1
       this%nhy_flux_id = forcing_cnt
+
+      ! Alk Flux
+      if (lalk_forcing_apply_flux) then      
+          forcing_cnt = forcing_cnt + 1
+          this%alk_flux_id = forcing_cnt
+      end if
 
       ! ---------------------------------------------------------
       ! | Request these if bury coefficients are being adjusted |

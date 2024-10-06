@@ -329,6 +329,19 @@
       "units": "mmol/m^3 cm/s",
       "vertical_grid": "none"
    },
+   "ALK_FLUX": {
+      "frequency": [
+         "medium",
+         "high"
+      ],
+      "longname": "Flux of Alk from forcing data",
+      "operator": [
+         "average",
+         "average"
+      ],
+      "units": "nmol/cm^2/s",
+      "vertical_grid": "none"
+   },
    "AOU": {
       "frequency": "medium",
       "longname": "Apparent O2 Utilization",

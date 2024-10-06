@@ -429,6 +429,18 @@ contains
         return
       end if
 
+      lname    = 'Flux of Alk from forcing data'
+      sname    = 'ALK_FLUX'
+      units    = 'nmol/cm^2/s'
+      vgrid    = 'none'
+      truncate = .false.
+      call diags%add_diagnostic(lname, sname, units, vgrid, truncate,     &
+           ind%ALK_FLUX, marbl_status_log)
+      if (marbl_status_log%labort_marbl) then
+        call marbl_logging_add_diagnostics_error(marbl_status_log, sname, subname)
+        return
+      end if
+
       lname    = 'Emission of NHx to Atmosphere'
       sname    = 'NHx_SURFACE_EMIS'
       units    = 'nmol/cm^2/s'
@@ -3244,7 +3256,7 @@ contains
          iron_flux_in      => surface_flux_forcings(surface_flux_forcing_ind%iron_flux_id)%field_0d,    &
          nox_flux          => surface_flux_forcings(surface_flux_forcing_ind%nox_flux_id)%field_0d,     &
          nhy_flux          => surface_flux_forcings(surface_flux_forcing_ind%nhy_flux_id)%field_0d,     &
-
+         alk_flux          => surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d,     &      
          piston_velocity   => surface_flux_internal%piston_velocity,                         &
          flux_co2          => surface_flux_internal%flux_co2,                                &
          flux_alt_co2      => surface_flux_internal%flux_alt_co2,                            &
@@ -3339,6 +3351,13 @@ contains
     diags(ind_diag%NOx_FLUX)%field_2d(:) = nox_flux
     diags(ind_diag%NHy_FLUX)%field_2d(:) = nhy_flux
     diags(ind_diag%NHx_SURFACE_EMIS)%field_2d(:) = nhx_surface_emis(:)
+
+    !-----------------------------------------------------------------------
+    !  calculate alk flux
+    !-----------------------------------------------------------------------
+
+    diags(ind_diag%ALK_FLUX)%field_2d(:) = alk_flux
+
 
     !-----------------------------------------------------------------------
     !  calculate dust flux and, if necessary, iron flux

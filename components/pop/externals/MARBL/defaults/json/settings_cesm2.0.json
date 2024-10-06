@@ -991,6 +991,13 @@
          "subcategory": "2. config flags",
          "units": "unitless"
       },
+      "lalk_forcing_apply_flux": {
+         "datatype": "logical",
+         "default_value": ".false.",
+         "longname": "Apply alkalinity forcing",
+         "subcategory": "2. config flags",
+         "units": "unitless"
+      },
       "lcompute_nhx_surface_emis": {
          "datatype": "logical",
          "default_value": ".true.",
