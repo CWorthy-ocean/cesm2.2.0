@@ -6815,7 +6815,7 @@ id="atm_alt_co2_opt"
 type="char*256"
 category="Forcing (Ecosystem)"
 group="ecosys_forcing_data_nml"
-valid_values="const,box_atm_co2" >
+valid_values="const,box_atm_co2,drv_diag" >
 Default: 'const'
 </entry>
 

@@ -563,6 +563,12 @@ contains
         call exit_POP(sigAbort, 'Stopping in ' // subname)
     end if
 
+    ! Diagnostic ATM_ALT_CO2 requested from driver but driver doesn't provide it?    
+    if ((trim(atm_alt_co2_opt) .eq. 'drv_diag') .and. (.not. ldriver_has_atm_co2_diag)) then
+        call document(subname, "ERROR: atm_alt_co2_opt is requesting diagnostic CO2 from coupler but coupler is not providing it!")
+        call exit_POP(sigAbort, 'Stopping in ' // subname)
+    end if    
+
     ! Prognostic ATM_CO2 requested from driver but driver doesn't provide it?
     if ((trim(atm_co2_opt) .eq. 'drv_prog') .and. (.not. ldriver_has_atm_co2_prog)) then
         call document(subname, "ERROR: atm_co2_opt is requesting prognostic CO2 from coupler but coupler is not providing it!")
@@ -729,6 +735,10 @@ contains
             call surface_flux_forcings(n)%add_forcing_field(field_source='internal', &
                  marbl_varname=marbl_varname, field_units=units,                           &
                  driver_varname='box_atm_co2', rank=2, id=n)
+          else if (trim(atm_alt_co2_opt).eq.'drv_diag') then
+            call surface_flux_forcings(n)%add_forcing_field(field_source='named_field', &
+                 marbl_varname=marbl_varname, field_units=units,                        &
+                 named_field='ATM_CO2_DIAG', rank=2, id=n)
           else
             write(err_msg, "(A,1X,A)") trim(atm_alt_co2_opt),                 &
                  'is not a valid option for atm_alt_co2_opt'
@@ -888,7 +898,7 @@ contains
                year_last=alk_forcing_shr_stream_year_last,                                 &
                year_align=alk_forcing_shr_stream_year_align,                               &
                filename=alk_forcing_shr_stream_file,                                       &
-               rank=2, id=n)          
+               rank=2, id=n)
 
         case ('external C Flux')
           ext_C_flux_ind = n
