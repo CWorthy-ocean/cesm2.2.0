@@ -171,15 +171,6 @@ contains
          )
 
 
-    if (lalk_forcing_apply_flux) then
-         associate(
-            alk_flux => surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d
-        )
-    else
-        alk_flux = c0
-    end if
-
-
     !-----------------------------------------------------------------------
     !  fluxes initially set to 0
     !-----------------------------------------------------------------------
@@ -423,7 +414,15 @@ contains
     !-----------------------------------------------------------------------
 
     surface_fluxes(:, alk_ind)         = surface_fluxes(:, alk_ind) + &
-         surface_fluxes(:, nh4_ind) - surface_fluxes(:, no3_ind) + alk_flux(:)
+         surface_fluxes(:, nh4_ind) - surface_fluxes(:, no3_ind)
+
+    ! add surface forcing if enabled
+    if (lalk_forcing_apply_flux) then
+         surface_fluxes(:, alk_ind) = surface_fluxes(:, alk_ind) + &
+             surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d
+    end if
+
+
     surface_fluxes(:, alk_alt_co2_ind) = surface_fluxes(:, alk_alt_co2_ind) + &
          surface_fluxes(:, nh4_ind) - surface_fluxes(:, no3_ind)
 

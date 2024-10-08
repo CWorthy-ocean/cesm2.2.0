@@ -3256,7 +3256,6 @@ contains
          iron_flux_in      => surface_flux_forcings(surface_flux_forcing_ind%iron_flux_id)%field_0d,    &
          nox_flux          => surface_flux_forcings(surface_flux_forcing_ind%nox_flux_id)%field_0d,     &
          nhy_flux          => surface_flux_forcings(surface_flux_forcing_ind%nhy_flux_id)%field_0d,     &
-         alk_flux          => surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d,     &      
          piston_velocity   => surface_flux_internal%piston_velocity,                         &
          flux_co2          => surface_flux_internal%flux_co2,                                &
          flux_alt_co2      => surface_flux_internal%flux_alt_co2,                            &
@@ -3356,7 +3355,11 @@ contains
     !  calculate alk flux
     !-----------------------------------------------------------------------
 
-    diags(ind_diag%ALK_FLUX)%field_2d(:) = alk_flux
+    if (lalk_forcing_apply_flux) then
+      diags(ind_diag%ALK_FLUX)%field_2d(:) = surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d
+    else
+      diags(ind_diag%ALK_FLUX)%field_2d(:) = c0
+    end if
 
 
     !-----------------------------------------------------------------------
