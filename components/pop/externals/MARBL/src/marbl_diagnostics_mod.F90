@@ -3234,6 +3234,7 @@ contains
     use marbl_interface_private_types , only : marbl_surface_flux_saved_state_indexing_type
     use marbl_settings_mod   , only : lflux_gas_o2
     use marbl_settings_mod   , only : lflux_gas_co2
+    use marbl_settings_mod   , only : lalk_forcing_apply_flux
     use marbl_constants_mod  , only : mpercm
 
     type(marbl_surface_flux_forcing_indexing_type), intent(in) :: surface_flux_forcing_ind
