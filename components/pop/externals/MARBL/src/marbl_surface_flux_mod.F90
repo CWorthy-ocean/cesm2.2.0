@@ -17,6 +17,7 @@ module marbl_surface_flux_mod
 
   use marbl_settings_mod, only : lflux_gas_o2
   use marbl_settings_mod, only : lflux_gas_co2
+  use marbl_settings_mod, only : lalk_forcing_apply_flux
   use marbl_settings_mod, only : ladjust_bury_coeff
   use marbl_settings_mod, only : autotroph_cnt
   use marbl_settings_mod, only : del_ph
@@ -134,7 +135,6 @@ contains
          iron_flux_in => surface_flux_forcings(surface_flux_forcing_ind%iron_flux_id)%field_0d,    &
          nox_flux     => surface_flux_forcings(surface_flux_forcing_ind%nox_flux_id)%field_0d,     &
          nhy_flux     => surface_flux_forcings(surface_flux_forcing_ind%nhy_flux_id)%field_0d,     &
-         alk_flux     => surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d,     &
 
          piston_velocity      => surface_flux_internal%piston_velocity(:),                       &
          flux_co2             => surface_flux_internal%flux_co2(:),                              &
@@ -169,6 +169,16 @@ contains
          alk_ind           => marbl_tracer_indices%alk_ind,                                     &
          alk_alt_co2_ind   => marbl_tracer_indices%alk_alt_co2_ind                              &
          )
+
+
+    if (lalk_forcing_apply_flux) then
+         associate(
+            alk_flux => surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d
+        )
+    else
+        alk_flux = c0
+    end if
+
 
     !-----------------------------------------------------------------------
     !  fluxes initially set to 0
