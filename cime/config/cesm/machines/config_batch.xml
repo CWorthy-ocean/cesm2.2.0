@@ -532,7 +532,8 @@
       <directive> --constraint=cpu</directive>
     </directives>
     <queues>
-      <queue walltimemax="24:00:00" nodemin="1" nodemax="3072">regular</queue>
+      <queue walltimemax="48:00:00" nodemin="1" nodemax="3072">premium</queue>      
+      <queue walltimemax="48:00:00" nodemin="1" nodemax="3072">regular</queue>
       <queue walltimemax="00:30:00" nodemin="1" nodemax="8" default="true">debug</queue>  
     </queues>
   </batch_system>
