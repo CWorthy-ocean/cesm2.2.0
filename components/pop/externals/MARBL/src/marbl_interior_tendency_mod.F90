@@ -1452,8 +1452,7 @@ contains
           picpoc = max(0.0_r8, -0.0136_r8 * CO2(:) + picpoc(:) + 0.21_r8)
 
           !P-limitation effect (CaCO2/organicC ratio increases when P limitation term is low)
-          ! max out picpoc at one to prevent crashing due to "ballast exceeds POC" error
-          picpoc = min(1., max(0.0_r8, -0.48_r8 * Plim(auto_ind,:) + picpoc(:) + 0.48_r8))
+          picpoc = max(0.0_r8, -0.48_r8 * Plim(auto_ind,:) + picpoc(:) + 0.48_r8)
 
           !multiply cocco growth rate by picpoc to get CaCO3 formation
           CaCO3_form(auto_ind,:) = picpoc(:) * photoC(auto_ind,:)
@@ -2500,7 +2499,7 @@ contains
         POP%prod(k) = c0
 
         ! write warning to log if omitting DOP_loss_P_bal would have led to a Jint_Ptot error
-        if (domain%delta_z(k) * DOP_loss_P_bal .gt. 1.0e4_r8*Jint_Ptot_thres) then
+        if (domain%delta_z(k) * DOP_loss_P_bal .gt. Jint_Ptot_thres) then
            write(log_message,"(A,E11.3e3,A,E11.3e3)") &
                 'dz*DOP_loss_P_bal=', domain%delta_z(k) * DOP_loss_P_bal, &
                 ' exceeds Jint_Ptot_thres=', Jint_Ptot_thres
