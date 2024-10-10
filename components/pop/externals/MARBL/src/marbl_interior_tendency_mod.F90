@@ -2500,7 +2500,7 @@ contains
         POP%prod(k) = c0
 
         ! write warning to log if omitting DOP_loss_P_bal would have led to a Jint_Ptot error
-        if (domain%delta_z(k) * DOP_loss_P_bal .gt. 1.0e4_r8*Jint_Ptot_thres) then
+        if (domain%delta_z(k) * DOP_loss_P_bal .gt. Jint_Ptot_thres) then
            write(log_message,"(A,E11.3e3,A,E11.3e3)") &
                 'dz*DOP_loss_P_bal=', domain%delta_z(k) * DOP_loss_P_bal, &
                 ' exceeds Jint_Ptot_thres=', Jint_Ptot_thres
