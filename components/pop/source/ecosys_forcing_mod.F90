@@ -900,6 +900,19 @@ contains
                filename=alk_forcing_shr_stream_file,                                       &
                rank=2, id=n)
 
+        case ('DIC Flux')
+          call surface_flux_forcings(n)%add_forcing_field(field_source='shr_stream',       &
+               strdata_inputlist_ptr=surface_strdata_inputlist_ptr,                        &
+               marbl_varname=marbl_varname,                                                &
+               field_units=units,                                                          &
+               unit_conv_factor=alk_forcing_shr_stream_scale_factor,                       &
+               file_varname='alk_forcing',                                                 &
+               year_first=alk_forcing_shr_stream_year_first,                               &
+               year_last=alk_forcing_shr_stream_year_last,                                 &
+               year_align=alk_forcing_shr_stream_year_align,                               &
+               filename=alk_forcing_shr_stream_file,                                       &
+               rank=2, id=n)
+
         case ('external C Flux')
           ext_C_flux_ind = n
           call surface_flux_forcings(n)%add_forcing_field(field_source='internal', &
