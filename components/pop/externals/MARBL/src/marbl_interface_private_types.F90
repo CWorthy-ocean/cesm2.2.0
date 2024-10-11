@@ -387,6 +387,7 @@ module marbl_interface_private_types
      integer(int_kind) :: nox_flux_id          = 0
      integer(int_kind) :: nhy_flux_id          = 0
      integer(int_kind) :: alk_flux_id          = 0
+     integer(int_kind) :: dic_flux_id          = 0     
      integer(int_kind) :: ext_C_flux_id        = 0
      integer(int_kind) :: ext_P_flux_id        = 0
      integer(int_kind) :: ext_Si_flux_id       = 0
@@ -469,6 +470,7 @@ module marbl_interface_private_types
      integer(int_kind) :: NOx_FLUX
      integer(int_kind) :: NHy_FLUX
      integer(int_kind) :: ALK_FLUX
+     integer(int_kind) :: DIC_FLUX
      integer(int_kind) :: NHx_SURFACE_EMIS
 
      integer(int_kind) :: CISO_DI13C_GAS_FLUX       ! di13c flux
@@ -1690,6 +1692,12 @@ contains
       if (lalk_forcing_apply_flux) then      
           forcing_cnt = forcing_cnt + 1
           this%alk_flux_id = forcing_cnt
+      end if
+
+      ! DIC Flux
+      if (ldic_forcing_apply_flux) then      
+          forcing_cnt = forcing_cnt + 1
+          this%dic_flux_id = forcing_cnt
       end if
 
       ! ---------------------------------------------------------

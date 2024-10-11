@@ -728,6 +728,13 @@ contains
           surface_flux_forcings(id)%metadata%field_units   = 'nmol/cm^2/s'
         end if
 
+        ! DIC Flux
+        if (id .eq. ind%dic_flux_id) then
+          found = .true.
+          surface_flux_forcings(id)%metadata%varname       = 'DIC Flux'
+          surface_flux_forcings(id)%metadata%field_units   = 'nmol/cm^2/s'
+        end if        
+
         ! external C Flux
         if (id .eq. ind%ext_C_flux_id) then
           found = .true.

@@ -441,6 +441,19 @@ contains
         return
       end if
 
+      lname    = 'Flux of DIC from forcing data'
+      sname    = 'DIC_FLUX'
+      units    = 'nmol/cm^2/s'
+      vgrid    = 'none'
+      truncate = .false.
+      call diags%add_diagnostic(lname, sname, units, vgrid, truncate,     &
+           ind%DIC_FLUX, marbl_status_log)
+      if (marbl_status_log%labort_marbl) then
+        call marbl_logging_add_diagnostics_error(marbl_status_log, sname, subname)
+        return
+      end if
+
+
       lname    = 'Emission of NHx to Atmosphere'
       sname    = 'NHx_SURFACE_EMIS'
       units    = 'nmol/cm^2/s'
@@ -3360,6 +3373,17 @@ contains
       diags(ind_diag%ALK_FLUX)%field_2d(:) = surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d
     else
       diags(ind_diag%ALK_FLUX)%field_2d(:) = c0
+    end if
+
+
+    !-----------------------------------------------------------------------
+    !  calculate dic flux
+    !-----------------------------------------------------------------------
+
+    if (ldic_forcing_apply_flux) then
+      diags(ind_diag%DIC_FLUX)%field_2d(:) = surface_flux_forcings(surface_flux_forcing_ind%dic_flux_id)%field_0d
+    else
+      diags(ind_diag%DIC_FLUX)%field_2d(:) = c0
     end if
 
 

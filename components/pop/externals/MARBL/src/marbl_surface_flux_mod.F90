@@ -423,6 +423,13 @@ contains
     end if
 
 
+    ! add surface forcing if enabled
+    if (ldic_forcing_apply_flux) then
+         surface_fluxes(:, dic_ind) = surface_fluxes(:, dic_ind) - &
+             surface_flux_forcings(surface_flux_forcing_ind%dic_flux_id)%field_0d
+    end if
+
+
     surface_fluxes(:, alk_alt_co2_ind) = surface_fluxes(:, alk_alt_co2_ind) + &
          surface_fluxes(:, nh4_ind) - surface_fluxes(:, no3_ind)
 
