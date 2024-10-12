@@ -1635,7 +1635,7 @@ contains
   !*****************************************************************************
 
   subroutine surface_flux_forcing_index_constructor(this, ciso_on, lflux_gas_o2,   &
-             lflux_gas_co2, ladjust_bury_coeff, lalk_forcing_apply_flux, num_surface_flux_forcing_fields)
+             lflux_gas_co2, ladjust_bury_coeff, lalk_forcing_apply_flux, ldic_forcing_apply_flux, num_surface_flux_forcing_fields)
 
     ! This subroutine sets the surface forcing indices, which are used to
     ! determine what forcing fields are required from the driver.
@@ -1646,6 +1646,7 @@ contains
     logical,                                         intent(in)  :: lflux_gas_co2
     logical,                                         intent(in)  :: ladjust_bury_coeff
     logical,                                         intent(in)  :: lalk_forcing_apply_flux
+    logical,                                         intent(in)  :: ldic_forcing_apply_flux    
     integer,                                         intent(out) :: num_surface_flux_forcing_fields
 
     associate(forcing_cnt => num_surface_flux_forcing_fields)
