@@ -18,6 +18,7 @@ module marbl_surface_flux_mod
   use marbl_settings_mod, only : lflux_gas_o2
   use marbl_settings_mod, only : lflux_gas_co2
   use marbl_settings_mod, only : lalk_forcing_apply_flux
+  use marbl_settings_mod, only : ldic_forcing_apply_flux
   use marbl_settings_mod, only : ladjust_bury_coeff
   use marbl_settings_mod, only : autotroph_cnt
   use marbl_settings_mod, only : del_ph
