@@ -360,6 +360,7 @@ contains
     use marbl_settings_mod, only : lflux_gas_o2
     use marbl_settings_mod, only : lflux_gas_co2
     use marbl_settings_mod, only : lalk_forcing_apply_flux
+    use marbl_settings_mod, only : ldic_forcing_apply_flux    
     use marbl_settings_mod, only : ladjust_bury_coeff
     use marbl_settings_mod, only : tracer_restore_vars
 
@@ -390,6 +391,7 @@ contains
                                               lflux_gas_co2,                  &
                                               ladjust_bury_coeff,             &
                                               lalk_forcing_apply_flux,        &
+                                              ldic_forcing_apply_flux,        &                                              
                                               num_surface_flux_forcing_fields)
       call interior_tendency_forcing_ind%construct(tracer_metadata%short_name,           &
                                                    tracer_restore_vars,                  &
