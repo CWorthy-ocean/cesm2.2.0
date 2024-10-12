@@ -250,6 +250,18 @@ general_parms :
       units : unitless
       datatype : logical
       default_value : .true.
+   lalk_forcing_apply_flux :
+      longname : Apply alkalinity forcing
+      subcategory : 2. config flags
+      units : unitless
+      datatype : logical
+      default_value : .false.
+   ldic_forcing_apply_flux :
+      longname : Apply dissolved inorganic carbon forcing
+      subcategory : 2. config flags
+      units : unitless
+      datatype : logical
+      default_value : .false.        
    lcompute_nhx_surface_emis :
       longname : Control if NHx emissions are computed
       subcategory : 2. config flags
