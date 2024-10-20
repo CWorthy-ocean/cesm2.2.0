@@ -3382,7 +3382,7 @@ contains
     !-----------------------------------------------------------------------
 
     if (ldic_forcing_apply_flux) then
-      diags(ind_diag%DIC_FLUX)%field_2d(:) = surface_flux_forcings(surface_flux_forcing_ind%dic_flux_id)%field_0d
+      diags(ind_diag%DIC_FLUX)%field_2d(:) = (-1.0_r8) * surface_flux_forcings(surface_flux_forcing_ind%dic_flux_id)%field_0d
     else
       diags(ind_diag%DIC_FLUX)%field_2d(:) = c0
     end if
