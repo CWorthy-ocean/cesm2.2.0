@@ -559,6 +559,12 @@ using a fortran linker.
   </LDFLAGS>
 </compiler>
 
+<compiler MACH="perlmutter" COMPILER="intel">
+  <CFLAGS>
+    <append> -L/opt/cray/pe/hdf5/1.12.2.9</append>
+  </CFLAGS>
+</compiler>
+     
 <compiler MACH="athena">
   <CPPDEFS>
     <!-- these flags enable nano timers -->
