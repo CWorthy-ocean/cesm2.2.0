@@ -2130,7 +2130,7 @@ This allows using a different mpirun command to launch unit tests
       </modules>
 
       <modules compiler="intel">
-	<command name="purge"</command>
+	<command name="purge"/>      
 	<command name="load">cpe/23.12</command>	      
         <command name="load">PrgEnv-intel/8.3.3</command>
         <command name="load">intel/2023.1.0</command>
