@@ -2133,7 +2133,8 @@ This allows using a different mpirun command to launch unit tests
 	<command name="purge"/>      
 	<command name="load">cpe/23.12</command>	      
         <command name="load">PrgEnv-intel/8.3.3</command>
-        <command name="load">intel/2023.1.0</command>
+        <!-- <command name="load">intel/2023.1.0</command> -->
+        <command name="load">intel/2023.2.0</command>
       </modules>                
         
       <modules compiler="cray">
@@ -2146,10 +2147,10 @@ This allows using a different mpirun command to launch unit tests
       <modules>
         <command name="load">craype-accel-host</command>
         <command name="load">craype/2.7.20</command>
-        <command name="load">cray-mpich/8.1.25</command>
-        <command name="load">cray-hdf5-parallel/1.12.2.3</command>
-        <command name="load">cray-netcdf-hdf5parallel/4.9.0.3</command>
-        <command name="load">cray-parallel-netcdf/1.12.3.3</command>
+        <command name="load">cray-mpich/8.1.28</command>
+	<command name="load">cray-hdf5</command>
+        <command name="load">cray-netcdf</command>
+        <command name="load">cray-parallel-netcdf</command>
         <command name="load">cmake/3.24.3</command>
 	<command name="load">cray-libsci/23.02.1.1</command>
 	<command name="load">cray-dsmml/0.2.2</command>	
@@ -2167,7 +2168,7 @@ This allows using a different mpirun command to launch unit tests
       <env name="PERL5LIB">/global/cfs/cdirs/e3sm/perl/lib/perl5-only-switch</env>
       <env name="FI_CXI_RX_MATCH_MODE">software</env>
       <env name="MPICH_COLL_SYNC">MPI_Bcast</env>
-      <env name="NETCDF_PATH">$ENV{CRAY_NETCDF_HDF5PARALLEL_PREFIX}</env>
+      <env name="NETCDF_PATH">$ENV{CRAY_NETCDF_PREFIX}</env>
       <env name="PNETCDF_PATH">$ENV{CRAY_PARALLEL_NETCDF_PREFIX}</env>
     </environment_variables>
     <resource_limits>
