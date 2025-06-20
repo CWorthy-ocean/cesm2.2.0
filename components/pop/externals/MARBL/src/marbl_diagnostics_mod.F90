@@ -3249,6 +3249,8 @@ contains
     use marbl_settings_mod   , only : lflux_gas_co2
     use marbl_settings_mod   , only : lalk_forcing_apply_flux
     use marbl_settings_mod   , only : ldic_forcing_apply_flux
+    use marbl_settings_mod   , only : alk_forcing_scale_factor
+    use marbl_settings_mod   , only : dic_forcing_scale_factor
     use marbl_constants_mod  , only : mpercm
 
     type(marbl_surface_flux_forcing_indexing_type), intent(in) :: surface_flux_forcing_ind
@@ -3371,7 +3373,7 @@ contains
     !-----------------------------------------------------------------------
 
     if (lalk_forcing_apply_flux) then
-      diags(ind_diag%ALK_FLUX)%field_2d(:) = surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d
+      diags(ind_diag%ALK_FLUX)%field_2d(:) = alk_forcing_scale_factor * surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d
     else
       diags(ind_diag%ALK_FLUX)%field_2d(:) = c0
     end if
@@ -3382,7 +3384,7 @@ contains
     !-----------------------------------------------------------------------
 
     if (ldic_forcing_apply_flux) then
-      diags(ind_diag%DIC_FLUX)%field_2d(:) = (-1.0_r8) * surface_flux_forcings(surface_flux_forcing_ind%dic_flux_id)%field_0d
+      diags(ind_diag%DIC_FLUX)%field_2d(:) = dic_forcing_scale_factor * surface_flux_forcings(surface_flux_forcing_ind%dic_flux_id)%field_0d
     else
       diags(ind_diag%DIC_FLUX)%field_2d(:) = c0
     end if

@@ -261,7 +261,19 @@ general_parms :
       subcategory : 2. config flags
       units : unitless
       datatype : logical
-      default_value : .false.        
+      default_value : .false.    
+   alk_forcing_scale_factor :
+      longname : Scale alkalinity forcing
+      subcategory : 2. config flags
+      units : unitless
+      datatype : real
+      default_value : 1.0
+   dic_forcing_scale_factor :
+      longname : Scale dissolved inorganic carbon forcing
+      subcategory : 2. config flags
+      units : unitless
+      datatype : real
+      default_value : -1.0
    lcompute_nhx_surface_emis :
       longname : Control if NHx emissions are computed
       subcategory : 2. config flags

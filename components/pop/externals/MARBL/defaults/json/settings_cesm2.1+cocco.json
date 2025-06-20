@@ -916,6 +916,13 @@
          "subcategory": "4. general parameters",
          "units": "mmol CaCO3/mmol C"
       },
+      "alk_forcing_scale_factor": {
+         "datatype": "real",
+         "default_value": 1.0,
+         "longname": "Scale alkalinity forcing",
+         "subcategory": "2. config flags",
+         "units": "unitless"
+      },
       "auto_mort2_exp": {
          "datatype": "real",
          "default_value": 1.75,
@@ -980,6 +987,13 @@
          "datatype": "logical",
          "default_value": ".false.",
          "longname": "Control whether CISO tracer module is active",
+         "subcategory": "2. config flags",
+         "units": "unitless"
+      },
+      "dic_forcing_scale_factor": {
+         "datatype": "real",
+         "default_value": -1.0,
+         "longname": "Scale dissolved inorganic carbon forcing",
          "subcategory": "2. config flags",
          "units": "unitless"
       },

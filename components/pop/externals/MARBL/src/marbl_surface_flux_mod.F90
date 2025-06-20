@@ -17,8 +17,12 @@ module marbl_surface_flux_mod
 
   use marbl_settings_mod, only : lflux_gas_o2
   use marbl_settings_mod, only : lflux_gas_co2
+  
   use marbl_settings_mod, only : lalk_forcing_apply_flux
   use marbl_settings_mod, only : ldic_forcing_apply_flux
+  use marbl_settings_mod, only : alk_forcing_scale_factor
+  use marbl_settings_mod, only : dic_forcing_scale_factor
+  
   use marbl_settings_mod, only : ladjust_bury_coeff
   use marbl_settings_mod, only : autotroph_cnt
   use marbl_settings_mod, only : del_ph
@@ -420,14 +424,14 @@ contains
     ! add surface forcing if enabled
     if (lalk_forcing_apply_flux) then
          surface_fluxes(:, alk_ind) = surface_fluxes(:, alk_ind) + &
-             surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d
+             alk_forcing_scale_factor * surface_flux_forcings(surface_flux_forcing_ind%alk_flux_id)%field_0d
     end if
 
 
     ! add surface forcing if enabled
     if (ldic_forcing_apply_flux) then
-         surface_fluxes(:, dic_ind) = surface_fluxes(:, dic_ind) - &
-             surface_flux_forcings(surface_flux_forcing_ind%dic_flux_id)%field_0d
+         surface_fluxes(:, dic_ind) = surface_fluxes(:, dic_ind) + &
+             dic_forcing_scale_factor * surface_flux_forcings(surface_flux_forcing_ind%dic_flux_id)%field_0d
     end if
 
 
