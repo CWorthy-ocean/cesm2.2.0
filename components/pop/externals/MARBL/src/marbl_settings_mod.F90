@@ -663,7 +663,7 @@ contains
     datatype  = 'real'
     rptr      => alk_forcing_scale_factor
     call this%add_var(sname, lname, units, datatype, category,       &
-                        marbl_status_log, lptr=lptr)
+                        marbl_status_log, rptr=rptr)
     call check_and_log_add_var_error(marbl_status_log, sname, subname, labort_marbl_loc)
 
     sname     = 'dic_forcing_scale_factor'
@@ -672,7 +672,7 @@ contains
     datatype  = 'real'
     rptr      => dic_forcing_scale_factor
     call this%add_var(sname, lname, units, datatype, category,       &
-                        marbl_status_log, lptr=lptr)
+                        marbl_status_log, rptr=rptr)
     call check_and_log_add_var_error(marbl_status_log, sname, subname, labort_marbl_loc)
 
     sname     = 'lcompute_nhx_surface_emis'
