@@ -661,7 +661,7 @@ contains
     lname     = 'Scale alkalinity flux'
     units     = 'unitless'
     datatype  = 'real'
-    lptr      => alk_forcing_scale_factor
+    rptr      => alk_forcing_scale_factor
     call this%add_var(sname, lname, units, datatype, category,       &
                         marbl_status_log, lptr=lptr)
     call check_and_log_add_var_error(marbl_status_log, sname, subname, labort_marbl_loc)
@@ -670,7 +670,7 @@ contains
     lname     = 'Scale DIC flux'
     units     = 'unitless'
     datatype  = 'real'
-    lptr      => dic_forcing_scale_factor
+    rptr      => dic_forcing_scale_factor
     call this%add_var(sname, lname, units, datatype, category,       &
                         marbl_status_log, lptr=lptr)
     call check_and_log_add_var_error(marbl_status_log, sname, subname, labort_marbl_loc)
