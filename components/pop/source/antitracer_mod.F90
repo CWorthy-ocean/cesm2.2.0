@@ -36,7 +36,6 @@ module antitracer_mod
 
    use passive_tracer_tools, only: forcing_monthly_every_ts, ind_name_pair
    use passive_tracer_tools, only : read_field, tracer_read
-   use forcing_timeseries_mod, only: forcing_timeseries_dataset
    use broadcast
 
    implicit none
@@ -73,7 +72,6 @@ module antitracer_mod
    integer (int_kind), parameter :: &
       antitracer_ind =  1
 
-
 !-----------------------------------------------------------------------
 !  derived type & parameter for tracer index lookup
 !-----------------------------------------------------------------------
@@ -93,23 +91,13 @@ module antitracer_mod
 !  forcing related variables
 !-----------------------------------------------------------------------
 
-   character(char_len) :: &
-      antitracer_formulation,     & ! how to calculate flux (ocmip or model)
+   integer(int_kind)   :: antitracer_forcing_shr_stream_year_first   ! first year in stream to use
+   integer(int_kind)   :: antitracer_forcing_shr_stream_year_last    ! last year in stream to use
+   integer(int_kind)   :: antitracer_forcing_shr_stream_year_align   ! align ndep_shr_stream_year_first with this model year
+   character(char_len) :: antitracer_forcing_shr_stream_file         ! file containing domain and input data
+   real(r8)            :: antitracer_forcing_shr_stream_scale_factor ! unit conversion factor
 
-   integer (int_kind) ::  &
-      model_year,             & ! arbitrary model year
-      data_year,              & ! year in data that corresponds to model_year
-
-   type (forcing_timeseries_dataset) :: &
-      pantitracer_atm_forcing_dataset  ! data structure for atm pantitracer timeseries
-
-   real (r8), dimension(:,:,:,:), allocatable :: &
-      INTERP_WORK            ! temp array for interpolate_forcing output
-
-   type(forcing_monthly_every_ts) :: &
-      fice_file,           & ! ice fraction, if read from file
-      xkw_file,            & ! a * wind-speed ** 2, if read from file
-      ap_file                ! atmoshperic pressure, if read from file
+   type (strdata_input_type), pointer :: surface_strdata_inputlist_ptr(:)
 
 !-----------------------------------------------------------------------
 !  define tavg id for 2d fields related to surface fluxes
@@ -208,30 +196,16 @@ contains
    type(tracer_read), dimension(antitracer_tracer_cnt) :: &
       tracer_init_ext           ! namelist variable for initializing tracers
 
-   type(tracer_read) :: &
-      gas_flux_fice,          & ! ice fraction for gas fluxes
-      gas_flux_ws,            & ! wind speed for gas fluxes
-
    namelist /antitracer_nml/ &
       init_antitracer_option, init_antitracer_init_file, init_antitracer_init_file_fmt, &
-      tracer_init_ext, model_year, data_year, &
-      antitracer_formulation, gas_flux_fice, gas_flux_ws
+      tracer_init_ext, &
+      antitracer_forcing_shr_stream_year_first,     &
+      antitracer_forcing_shr_stream_year_last, antitracer_forcing_shr_stream_year_align, &
+      antitracer_forcing_shr_stream_file, antitracer_forcing_shr_stream_scale_factor,    &
 
-   real (r8) :: &
-      mapped_date               ! date of current model timestep mapped to data timeline
 
    character (char_len) ::  &
       antitracer_restart_filename      ! modified file name for restart file
-
-!-----------------------------------------------------------------------
-!  initialize forcing_monthly_every_ts variables
-!-----------------------------------------------------------------------
-
-   errorCode = POP_Success
-
-   call init_forcing_monthly_every_ts(fice_file)
-   call init_forcing_monthly_every_ts(xkw_file)
-   call init_forcing_monthly_every_ts(ap_file)
 
 !-----------------------------------------------------------------------
 !  initialize tracer_d values
@@ -262,17 +236,11 @@ contains
       tracer_init_ext(n)%file_fmt     = 'bin'
    end do
 
-   gas_flux_fice%filename     = 'unknown'
-   gas_flux_fice%file_varname = 'FICE'
-   gas_flux_fice%scale_factor = c1
-   gas_flux_fice%default_val  = c0
-   gas_flux_fice%file_fmt     = 'bin'
-
-   gas_flux_ws%filename     = 'unknown'
-   gas_flux_ws%file_varname = 'XKW'
-   gas_flux_ws%scale_factor = c1
-   gas_flux_ws%default_val  = c0
-   gas_flux_ws%file_fmt     = 'bin'
+    antitracer_forcing_shr_stream_year_first = 1999
+    antitracer_forcing_shr_stream_year_last = 2019
+    antitracer_forcing_shr_stream_year_align = 347
+    antitracer_forcing_shr_stream_file = '/glade/work/mclong/o-nets/data/forcing/alk-forcing.001.nc'
+    antitracer_forcing_shr_stream_scale_factor = 1.0e4_r8  ! convert from 1/m^2/s to 1/cm^2/s
 
    if (my_task == master_task) then
       open (nml_in, file=nml_filename, status='old',iostat=nml_error)
@@ -311,41 +279,13 @@ contains
       call broadcast_scalar(tracer_init_ext(n)%file_fmt, master_task)
    end do
 
-   call broadcast_scalar(model_year, master_task)
-   call broadcast_scalar(data_year, master_task)
-   call broadcast_scalar(antitracer_formulation, master_task)
-
-   call broadcast_scalar(gas_flux_fice%filename, master_task)
-   call broadcast_scalar(gas_flux_fice%file_varname, master_task)
-   call broadcast_scalar(gas_flux_fice%scale_factor, master_task)
-   call broadcast_scalar(gas_flux_fice%default_val, master_task)
-   call broadcast_scalar(gas_flux_fice%file_fmt, master_task)
-
-   fice_file%input = gas_flux_fice
-
-   call broadcast_scalar(gas_flux_ws%filename, master_task)
-   call broadcast_scalar(gas_flux_ws%file_varname, master_task)
-   call broadcast_scalar(gas_flux_ws%scale_factor, master_task)
-   call broadcast_scalar(gas_flux_ws%default_val, master_task)
-   call broadcast_scalar(gas_flux_ws%file_fmt, master_task)
-
-   xkw_file%input = gas_flux_ws
-
-   call broadcast_scalar(gas_flux_ap%filename, master_task)
-   call broadcast_scalar(gas_flux_ap%file_varname, master_task)
-   call broadcast_scalar(gas_flux_ap%scale_factor, master_task)
-   call broadcast_scalar(gas_flux_ap%default_val, master_task)
-   call broadcast_scalar(gas_flux_ap%file_fmt, master_task)
-
-   ap_file%input = gas_flux_ap
-
 !-----------------------------------------------------------------------
 !   initialize tracers
 !-----------------------------------------------------------------------
 
    select case (init_antitracer_option)
 
-   case ('ccsm_startup', 'zero', 'ccsm_startup_spunup')
+   case ('zero')
       TRACER_MODULE = c0
       if (my_task == master_task) then
           write(stdout,delim_fmt)
@@ -353,16 +293,7 @@ contains
           write(stdout,delim_fmt)
       endif
 
-   case ('restart', 'ccsm_continue', 'ccsm_branch', 'ccsm_hybrid' )
-
-      ! if mapped_date is less than pantitracer_first_nonzero_year then
-      ! register c0 as an io_read_fallback option
-      mapped_date = iyear + (iday_of_year-1+frac_day)/days_in_year &
-                    - model_year + data_year
-      if (mapped_date < pantitracer_first_nonzero_year) then
-         call io_read_fallback_register_tracer(tracername='ANTITRACER', &
-            fallback_opt='const', const_val=c0)
-      endif
+   case ('restart')
 
       antitracer_restart_filename = char_blank
 
@@ -493,18 +424,6 @@ contains
                           coordinates='TLONG TLAT time')
    var_cnt = var_cnt+1
 
-   call define_tavg_field(tavg_ANTITRACER_ATM_PRESS,'ANTITRACER_ATM_PRESS',2,   &
-                          long_name='Atmospheric Pressure for ANTITRACER fluxes',&
-                          units='atmospheres', grid_loc='2110',   &
-                          coordinates='TLONG TLAT time')
-   var_cnt = var_cnt+1
-
-   call define_tavg_field(tavg_pANTITRACER,'pANTITRACER',2,                 &
-                          long_name='ANTITRACER atmospheric partial pressure',&
-                          units='pmol/mol', grid_loc='2110',      &
-                          coordinates='TLONG TLAT time')
-   var_cnt = var_cnt+1
-
    call define_tavg_field(tavg_ANTITRACER_SCHMIDT,'ANTITRACER_SCHMIDT',2,   &
                           long_name='ANTITRACER Schmidt Number',       &
                           units='none', grid_loc='2110',          &
@@ -514,12 +433,6 @@ contains
    call define_tavg_field(tavg_ANTITRACER_PV,'ANTITRACER_PV',2,             &
                           long_name='ANTITRACER piston velocity',      &
                           units='cm/s', grid_loc='2110',          &
-                          coordinates='TLONG TLAT time')
-   var_cnt = var_cnt+1
-
-   call define_tavg_field(tavg_ANTITRACER_surf_sat,'ANTITRACER_surf_sat',2, &
-                          long_name='ANTITRACER Saturation',           &
-                          units='fmol/cm^3', grid_loc='2110',     &
                           coordinates='TLONG TLAT time')
    var_cnt = var_cnt+1
 
@@ -538,17 +451,29 @@ contains
 ! !IROUTINE: antitracer_init_sflux
 ! !INTERFACE:
 
- subroutine antitracer_init_sflux
-
-! !USES:
-
-   use forcing_tools, only: find_forcing_times
-   use forcing_timeseries_mod, only: forcing_timeseries_init_dataset
+ subroutine antitracer_init_sflux(filename, file_varname, rank, &
+      year_first, year_last, year_align, tintalgo, taxMode, strdata_inputlist_ptr)
 
 ! !DESCRIPTION:
 !  Initialize surface flux computations for antitracer tracer module.
-! !REVISION HISTORY:
-!  same as module
+
+! !USES:
+
+    use strdata_interface_mod, only : POP_strdata_type_set
+    use strdata_interface_mod, only : POP_strdata_type_match
+    use strdata_interface_mod, only : POP_strdata_type_append_field
+    use strdata_interface_mod, only : POP_strdata_type_cp
+    use strdata_interface_mod, only : POP_strdata_type_field_count
+
+    character(len=*),                            intent(in)    :: filename
+    character(len=*),                            intent(in)    :: file_varname
+    integer (kind=int_kind),                     intent(in)    :: rank
+    integer(kind=int_kind),            optional, intent(in)    :: year_first
+    integer(kind=int_kind),            optional, intent(in)    :: year_last
+    integer(kind=int_kind),            optional, intent(in)    :: year_align
+    character(len=*),                  optional, intent(in)    :: tintalgo
+    character(len=*),                  optional, intent(in)    :: taxMode
+    type(strdata_input_type), pointer, optional, intent(inout) :: strdata_inputlist_ptr(:)
 
 !EOP
 !BOC
@@ -566,127 +491,20 @@ contains
       WORK_READ            ! temporary space to read in fields
 
 !-----------------------------------------------------------------------
+   do n = 1, size(interior_strdata_inputlist_ptr)
+     call POP_strdata_create(surface_strdata_inputlist_ptr(n))
+   end do
 
-   call forcing_timeseries_init_dataset(pantitracer_file, &
-      varnames      = (/ 'ANTITRACERNH', 'ANTITRACERSH' /), &
-      model_year    = model_year, &
-      data_year     = data_year, &
-      taxmode_start = 'endpoint', &
-      taxmode_end   = 'extrapolate', &
-      dataset       = pantitracer_atm_forcing_dataset)
-
-!-----------------------------------------------------------------------
-!  read gas flux forcing (if required)
-!  otherwise, use values passed in
-!-----------------------------------------------------------------------
-
-   select case (antitracer_formulation)
-
-   case ('ocmip')
-
-!-----------------------------------------------------------------------
-!  allocate space for interpolate_forcing
-!-----------------------------------------------------------------------
-
-      allocate(INTERP_WORK(nx_block,ny_block,max_blocks_clinic,1))
-
-!-----------------------------------------------------------------------
-!  first, read ice file
-!-----------------------------------------------------------------------
-
-      allocate(fice_file%DATA(nx_block,ny_block,max_blocks_clinic,1,12))
-
-      call read_field(fice_file%input%file_fmt, &
-                      fice_file%input%filename, &
-                      fice_file%input%file_varname, &
-                      WORK_READ)
-      !$OMP PARALLEL DO PRIVATE(iblock, n)
-      do iblock=1,nblocks_clinic
-      do n=1,12
-         fice_file%DATA(:,:,iblock,1,n) = WORK_READ(:,:,n,iblock)
-         where (.not. LAND_MASK(:,:,iblock)) &
-            fice_file%DATA(:,:,iblock,1,n) = c0
-         fice_file%DATA(:,:,iblock,1,n) = &
-            fice_file%DATA(:,:,iblock,1,n) * fice_file%input%scale_factor
-      end do
-      end do
-      !$OMP END PARALLEL DO
-
-      call find_forcing_times(fice_file%data_time, &
-                              fice_file%data_inc, fice_file%interp_type, &
-                              fice_file%data_next, fice_file%data_time_min_loc, &
-                              fice_file%data_update, fice_file%data_type)
-
-!-----------------------------------------------------------------------
-!  next, read piston velocity file
-!-----------------------------------------------------------------------
-
-      allocate(xkw_file%DATA(nx_block,ny_block,max_blocks_clinic,1,12))
-
-      call read_field(xkw_file%input%file_fmt, &
-                      xkw_file%input%filename, &
-                      xkw_file%input%file_varname, &
-                      WORK_READ)
-
-      !$OMP PARALLEL DO PRIVATE(iblock, n)
-      do iblock=1,nblocks_clinic
-      do n=1,12
-         xkw_file%DATA(:,:,iblock,1,n) = WORK_READ(:,:,n,iblock)
-         where (.not. LAND_MASK(:,:,iblock)) &
-            xkw_file%DATA(:,:,iblock,1,n) = c0
-         xkw_file%DATA(:,:,iblock,1,n) = &
-            xkw_file%DATA(:,:,iblock,1,n) * xkw_file%input%scale_factor
-      end do
-      end do
-      !$OMP END PARALLEL DO
-
-      call find_forcing_times(xkw_file%data_time, &
-                              xkw_file%data_inc, xkw_file%interp_type, &
-                              xkw_file%data_next, xkw_file%data_time_min_loc, &
-                              xkw_file%data_update, xkw_file%data_type)
-
-!-----------------------------------------------------------------------
-!  last, read atmospheric pressure file
-!-----------------------------------------------------------------------
-
-      allocate(ap_file%DATA(nx_block,ny_block,max_blocks_clinic,1,12))
-
-      call read_field(ap_file%input%file_fmt, &
-                      ap_file%input%filename, &
-                      ap_file%input%file_varname, &
-                      WORK_READ)
-
-      !$OMP PARALLEL DO PRIVATE(iblock, n)
-      do iblock=1,nblocks_clinic
-      do n=1,12
-         ap_file%DATA(:,:,iblock,1,n) = WORK_READ(:,:,n,iblock)
-         where (.not. LAND_MASK(:,:,iblock)) &
-            ap_file%DATA(:,:,iblock,1,n) = c0
-         ap_file%DATA(:,:,iblock,1,n) = &
-            ap_file%DATA(:,:,iblock,1,n) * ap_file%input%scale_factor
-      end do
-      end do
-      !$OMP END PARALLEL DO
-
-      call find_forcing_times(ap_file%data_time, &
-                              ap_file%data_inc, ap_file%interp_type, &
-                              ap_file%data_next, ap_file%data_time_min_loc, &
-                              ap_file%data_update, ap_file%data_type)
-
-   case ('model')
-
-      if (my_task == master_task) then
-         write(stdout,*)  &
-            ' Using fields from model forcing for calculating ANTITRACER flux'
-      endif
-
-   case default
-      call document(subname, 'antitracer_formulation', antitracer_formulation)
-
-      call exit_POP(sigAbort, &
-                    'antitracer_init_sflux: Unknown value for antitracer_formulation')
-
-   end select
+   call POP_strdata_type_set(strdata_input_var, &
+     file_name   = this%filename,     &
+     field       = this%file_varname, &
+     timer_label = 'marbl_file',      &
+     year_first  = this%year_first,   &
+     year_last   = this%year_last,    &
+     year_align  = this%year_align,   &
+     depth_flag  = (rank == 3),       &
+     tintalgo    = tintalgo,          &
+     taxMode     = taxMode)
 
 !-----------------------------------------------------------------------
 !EOC
@@ -698,8 +516,10 @@ contains
 ! !IROUTINE: antitracer_set_sflux
 ! !INTERFACE:
 
- subroutine antitracer_set_sflux(U10_SQR,IFRAC,PRESS,SST,SSS, &
-                          SURF_VALS_OLD,SURF_VALS_CUR,STF_MODULE)
+ subroutine antitracer_set_sflux(U10_SQR,IFRAC,SST, &
+                          SURF_VALS,STF_MODULE)
+! subroutine antitracer_set_sflux(U10_SQR,IFRAC,SST, &
+!                          SURF_VALS_OLD,SURF_VALS_CUR,STF_MODULE)
 
 ! !DESCRIPTION:
 !  Compute ANTITRACER surface flux and store related tavg fields for
@@ -710,23 +530,19 @@ contains
 
 ! !USES:
 
-   use constants, only: field_loc_center, field_type_scalar, p5, xkw_coeff
-   use time_management, only: thour00
-   use forcing_tools, only: update_forcing_data, interpolate_forcing
+   use constants, only: xkw_coeff !, p5
    use timers, only: timer_start, timer_stop
-   use forcing_timeseries_mod, only: forcing_timeseries_dataset_update_data
 
 ! !INPUT PARAMETERS:
 
    real (r8), dimension(nx_block,ny_block,max_blocks_clinic), intent(in) :: &
       U10_SQR,   & ! 10m wind speed squared (cm/s)**2
       IFRAC,     & ! sea ice fraction (non-dimensional)
-      PRESS,     & ! sea level atmospheric pressure (dyne/cm**2)
       SST,       & ! sea surface temperature (C)
-      SSS          ! sea surface salinity (psu)
 
    real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,max_blocks_clinic), &
-         intent(in) :: SURF_VALS_OLD, SURF_VALS_CUR ! module tracers
+         intent(in) :: SURF_VALS ! module tracers
+!         intent(in) :: SURF_VALS_OLD, SURF_VALS_CUR ! module tracers
 
 ! !OUTPUT PARAMETERS:
 
@@ -745,172 +561,95 @@ contains
    real (r8), dimension(nx_block,ny_block,max_blocks_clinic) :: &
       IFRAC_USED,      & ! used ice fraction (non-dimensional)
       XKW_USED,        & ! part of piston velocity (cm/s)
-      AP_USED            ! used atm pressure (converted from dyne/cm**2 to atm)
 
    real (r8), dimension(nx_block,ny_block) :: &
-      SURF_VALS,       & ! filtered surface tracer values
-      pANTITRACER,          & ! atmospheric ANTITRACER mole fraction (pmol/mol)
+      !SURF_VALS,       & ! filtered surface tracer values
       ANTITRACER_SCHMIDT,   & ! ANTITRACER Schmidt number
-      ANTITRACER_SOL_0,     & ! solubility of ANTITRACER at 1 atm (mol/l/atm)
       XKW_ICE,         & ! common portion of piston vel., (1-fice)*xkw (cm/s)
       PV,              & ! piston velocity (cm/s)
-      ANTITRACER_surf_sat       ! ANTITRACER surface saturation (fmol/cm^3)
-
-   character (char_len) :: &
-      tracer_data_label          ! label for what is being updated
-
-   character (char_len), dimension(1) :: &
-      tracer_data_names          ! short names for input data fields
-
-   integer (int_kind), dimension(1) :: &
-      tracer_bndy_loc,          &! location and field type for ghost
-      tracer_bndy_type           !    cell updates
 
 !-----------------------------------------------------------------------
 
    call timer_start(antitracer_sflux_timer)
 
+!-----------------------------------------------------------------------
+!   read antitracer forcing data
+!-----------------------------------------------------------------------
+
+   call POP_strdata_advance(surface_strdata_inputlist_ptr(:))
+
+   stream_index = metadata%field_file_info%strdata_inputlist_ind
+   var_ind      = metadata%field_file_info%strdata_var_ind
+
+   n = 0
+   do iblock = 1, nblocks_clinic
+      this_block = get_block(blocks_clinic(iblock), iblock)
+      do j = this_block%jb, this_block%je
+         do i = this_block%ib, this_block%ie
+            n = n + 1
+            shr_stream(i,j,iblock) = surface_strdata_inputlist_ptr(stream_index)%sdat%avs(1)%rAttr(var_ind,n)
+         enddo
+      enddo
+   enddo
+
+   call POP_HaloUpdate(shr_stream, POP_haloClinic, &
+        POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 0.0_r8)
+   if (errorCode /= POP_Success) then
+      call document(subname, 'error updating halo for shr_stream field')
+      call exit_POP(sigAbort, 'Stopping in ' // subname)
+   endif
+
+   do iblock = 1, nblocks_clinic
+      where (land_mask(:,:,iblock))
+         forcing_field%field_0d(:,:,iblock) = shr_stream(:,:,iblock)
+      endwhere
+   enddo
+
+   if (metadata%ltime_varying) then
+      do iblock = 1, nblocks_clinic
+         call apply_unit_conv_factor(land_mask(:,:,iblock), forcing_field, iblock)
+      enddo
+   end if
+
+!-----------------------------------------------------------------------
+!   compute air-sea gas exchange
+!-----------------------------------------------------------------------
+
    do iblock = 1, nblocks_clinic
       IFRAC_USED(:,:,iblock) = c0
       XKW_USED(:,:,iblock) = c0
-      AP_USED(:,:,iblock) = c0
    end do
 
-!-----------------------------------------------------------------------
-!  Interpolate gas flux forcing data if necessary
-!-----------------------------------------------------------------------
-
-   call forcing_timeseries_dataset_update_data(pantitracer_atm_forcing_dataset)
-
-   if (antitracer_formulation == 'ocmip') then
-       if (thour00 >= fice_file%data_update) then
-          tracer_data_names = fice_file%input%file_varname
-          tracer_bndy_loc   = field_loc_center
-          tracer_bndy_type  = field_type_scalar
-          tracer_data_label = 'Ice Fraction'
-          call update_forcing_data(          fice_file%data_time,   &
-               fice_file%data_time_min_loc,  fice_file%interp_type, &
-               fice_file%data_next,          fice_file%data_update, &
-               fice_file%data_type,          fice_file%data_inc,    &
-               fice_file%DATA(:,:,:,:,1:12), fice_file%data_renorm, &
-               tracer_data_label,            tracer_data_names,     &
-               tracer_bndy_loc,              tracer_bndy_type,      &
-               fice_file%filename,           fice_file%input%file_fmt)
-       endif
-       call interpolate_forcing(INTERP_WORK, &
-            fice_file%DATA(:,:,:,:,1:12), &
-            fice_file%data_time,         fice_file%interp_type, &
-            fice_file%data_time_min_loc, fice_file%interp_freq, &
-            fice_file%interp_inc,        fice_file%interp_next, &
-            fice_file%interp_last,       0)
-       IFRAC_USED = INTERP_WORK(:,:,:,1)
-
-       if (thour00 >= xkw_file%data_update) then
-          tracer_data_names = xkw_file%input%file_varname
-          tracer_bndy_loc   = field_loc_center
-          tracer_bndy_type  = field_type_scalar
-          tracer_data_label = 'Piston Velocity'
-          call update_forcing_data(         xkw_file%data_time,   &
-               xkw_file%data_time_min_loc,  xkw_file%interp_type, &
-               xkw_file%data_next,          xkw_file%data_update, &
-               xkw_file%data_type,          xkw_file%data_inc,    &
-               xkw_file%DATA(:,:,:,:,1:12), xkw_file%data_renorm, &
-               tracer_data_label,           tracer_data_names,    &
-               tracer_bndy_loc,             tracer_bndy_type,     &
-               xkw_file%filename,           xkw_file%input%file_fmt)
-       endif
-       call interpolate_forcing(INTERP_WORK, &
-            xkw_file%DATA(:,:,:,:,1:12), &
-            xkw_file%data_time,         xkw_file%interp_type, &
-            xkw_file%data_time_min_loc, xkw_file%interp_freq, &
-            xkw_file%interp_inc,        xkw_file%interp_next, &
-            xkw_file%interp_last,       0)
-       XKW_USED = INTERP_WORK(:,:,:,1)
-
-       if (thour00 >= ap_file%data_update) then
-          tracer_data_names = ap_file%input%file_varname
-          tracer_bndy_loc   = field_loc_center
-          tracer_bndy_type  = field_type_scalar
-          tracer_data_label = 'Atmospheric Pressure'
-          call update_forcing_data(        ap_file%data_time,   &
-               ap_file%data_time_min_loc,  ap_file%interp_type, &
-               ap_file%data_next,          ap_file%data_update, &
-               ap_file%data_type,          ap_file%data_inc,    &
-               ap_file%DATA(:,:,:,:,1:12), ap_file%data_renorm, &
-               tracer_data_label,          tracer_data_names,   &
-               tracer_bndy_loc,            tracer_bndy_type,    &
-               ap_file%filename,           ap_file%input%file_fmt)
-       endif
-       call interpolate_forcing(INTERP_WORK, &
-            ap_file%DATA(:,:,:,:,1:12), &
-            ap_file%data_time,         ap_file%interp_type, &
-            ap_file%data_time_min_loc, ap_file%interp_freq, &
-            ap_file%interp_inc,        ap_file%interp_next, &
-            ap_file%interp_last,       0)
-       AP_USED = INTERP_WORK(:,:,:,1)
-   endif
-
-   !$OMP PARALLEL DO PRIVATE(iblock,SURF_VALS,pANTITRACER,ANTITRACER_SCHMIDT, &
-   !$OMP                     ANTITRACER_SOL_0,XKW_ICE,&
-   !$OMP                     PV,ANTITRACER_surf_sat)
+   !$OMP PARALLEL DO PRIVATE(iblock,SURF_VALS,ANTITRACER_SCHMIDT, &
+   !$OMP                     XKW_ICE,PV)
    do iblock = 1, nblocks_clinic
 
-      if (antitracer_formulation == 'ocmip') then
-         where (LAND_MASK(:,:,iblock) .and. IFRAC_USED(:,:,iblock) < 0.2000_r8) &
-            IFRAC_USED(:,:,iblock) = 0.2000_r8
-         where (LAND_MASK(:,:,iblock) .and. IFRAC_USED(:,:,iblock) > 0.9999_r8) &
-            IFRAC_USED(:,:,iblock) = 0.9999_r8
-      endif
-
-      if (antitracer_formulation == 'model') then
-         where (LAND_MASK(:,:,iblock))
-            IFRAC_USED(:,:,iblock) = IFRAC(:,:,iblock)
-
-            XKW_USED(:,:,iblock) = xkw_coeff * U10_SQR(:,:,iblock)
-
-            AP_USED(:,:,iblock) = PRESS(:,:,iblock)
-         endwhere
-         where (LAND_MASK(:,:,iblock) .and. IFRAC_USED(:,:,iblock) < c0) &
-            IFRAC_USED(:,:,iblock) = c0
-         where (LAND_MASK(:,:,iblock) .and. IFRAC_USED(:,:,iblock) > c1) &
-            IFRAC_USED(:,:,iblock) = c1
-      endif
-
-!-----------------------------------------------------------------------
-!  assume PRESS is in cgs units (dyne/cm**2) since that is what is
-!    required for pressure forcing in barotropic
-!  want units to be atmospheres
-!  convertion from dyne/cm**2 to Pascals is P(mks) = P(cgs)/10.
-!  convertion from Pascals to atm is P(atm) = P(Pa)/101.325e+3_r8
-!-----------------------------------------------------------------------
-
-      AP_USED(:,:,iblock) = AP_USED(:,:,iblock) * (c1 / 1013.25e+3_r8)
-
-      call comp_pantitracer(iblock, LAND_MASK(:,:,iblock), pANTITRACER)
+      where (LAND_MASK(:,:,iblock))
+         IFRAC_USED(:,:,iblock) = IFRAC(:,:,iblock)
+         XKW_USED(:,:,iblock) = xkw_coeff * U10_SQR(:,:,iblock)
+      endwhere
+      where (LAND_MASK(:,:,iblock) .and. IFRAC_USED(:,:,iblock) < c0) &
+         IFRAC_USED(:,:,iblock) = c0
+      where (LAND_MASK(:,:,iblock) .and. IFRAC_USED(:,:,iblock) > c1) &
+         IFRAC_USED(:,:,iblock) = c1
 
       call comp_antitracer_schmidt(LAND_MASK(:,:,iblock), SST(:,:,iblock), &
                             ANTITRACER_SCHMIDT)
 
-      call comp_antitracer_sol_0(LAND_MASK(:,:,iblock), SST(:,:,iblock), SSS(:,:,iblock), &
-                          ANTITRACER_SOL_0)
-
       where (LAND_MASK(:,:,iblock))
          ANTITRACER_SFLUX_TAVG(:,:,1,iblock) = IFRAC_USED(:,:,iblock)
          ANTITRACER_SFLUX_TAVG(:,:,2,iblock) = XKW_USED(:,:,iblock)
-         ANTITRACER_SFLUX_TAVG(:,:,3,iblock) = AP_USED(:,:,iblock)
-         ANTITRACER_SFLUX_TAVG(:,:,4,iblock) = pANTITRACER
-         ANTITRACER_SFLUX_TAVG(:,:,5,iblock) = ANTITRACER_SCHMIDT
+         ANTITRACER_SFLUX_TAVG(:,:,3,iblock) = ANTITRACER_SCHMIDT
 
          XKW_ICE = (c1 - IFRAC_USED(:,:,iblock)) * XKW_USED(:,:,iblock)
          PV = XKW_ICE * sqrt(660.0_r8 / ANTITRACER_SCHMIDT)
-         ANTITRACER_surf_sat = AP_USED(:,:,iblock) * ANTITRACER_SOL_0 * pANTITRACER
-         SURF_VALS = p5*(SURF_VALS_OLD(:,:,antitracer_ind,iblock) + &
-                         SURF_VALS_CUR(:,:,antitracer_ind,iblock))
-         STF_MODULE(:,:,antitracer_ind,iblock) = &
-            PV * (ANTITRACER_surf_sat - SURF_VALS)
+         ANTITRACER_SFLUX_TAVG(:,:,4,iblock) = PV
+                  
+         !SURF_VALS = p5*(SURF_VALS_OLD(:,:,sf6_ind,iblock) + &
+         !                SURF_VALS_CUR(:,:,sf6_ind,iblock))
 
-         ANTITRACER_SFLUX_TAVG(:,:,6,iblock) = PV
-         ANTITRACER_SFLUX_TAVG(:,:,7,iblock) = ANTITRACER_surf_sat
+         STF_MODULE(:,:,antitracer_ind,iblock) = &
+            (PV / BETA) * SURF_VALS
 
       elsewhere
          STF_MODULE(:,:,antitracer_ind,iblock) = c0
@@ -925,90 +664,6 @@ contains
 !EOC
 
  end subroutine antitracer_set_sflux
-
-!***********************************************************************
-!BOP
-! !IROUTINE: comp_pantitracer
-! !INTERFACE:
-
- subroutine comp_pantitracer(iblock, LAND_MASK, pANTITRACER)
-
-! !DESCRIPTION:
-!  Compute atmospheric mole fractions of ANTITRACERs
-!  Linearly interpolate hemispheric values to current time step
-!  Spatial pattern is determined by :
-!     Northern Hemisphere value is used North of 10N
-!     Southern Hemisphere value is used North of 10S
-!     Linear Interpolation (in latitude) is used between 10N & 10S
-
-! !REVISION HISTORY:
-!  same as module
-
-! !USES:
-
-   use grid, only : TLATD
-   use constants, only : c10
-   use forcing_timeseries_mod, only: forcing_timeseries_dataset_get_var
-
-! !INPUT PARAMETERS:
-
-   logical (log_kind), dimension(nx_block,ny_block), intent(in) :: &
-      LAND_MASK          ! land mask for this block
-
-   integer (int_kind) :: &
-      iblock          ! block index
-
-! !OUTPUT PARAMETERS:
-
-   real (r8), dimension(nx_block,ny_block), intent(out) :: &
-      pANTITRACER  ! atmospheric ANTITRACER mole fraction (pmol/mol)
-
-!EOP
-!BOC
-!-----------------------------------------------------------------------
-!  local variables
-!-----------------------------------------------------------------------
-
-   integer (int_kind) :: &
-      i, j              ! loop indices
-
-   real (r8) :: &
-      pantitracer_nh_curr,   & ! pantitracer_nh for current time step (pmol/mol)
-      pantitracer_sh_curr      ! pantitracer_sh for current time step (pmol/mol)
-
-!-----------------------------------------------------------------------
-!  Generate hemisphere values for current time step.
-!
-!  varind in the following calls must match varname ordering in 
-!  call to forcing_timeseries_init_dataset in subroutine antitracer_init_sflux
-!-----------------------------------------------------------------------
-
-   call forcing_timeseries_dataset_get_var(pantitracer_atm_forcing_dataset, varind=1, data_1d=pantitracer_nh_curr)
-   call forcing_timeseries_dataset_get_var(pantitracer_atm_forcing_dataset, varind=2, data_1d=pantitracer_sh_curr)
-
-!-----------------------------------------------------------------------
-!     Merge hemisphere values.
-!-----------------------------------------------------------------------
-
-   do j = 1, ny_block
-      do i = 1, nx_block
-         if (LAND_MASK(i,j)) then
-            if (TLATD(i,j,iblock) < -c10) then
-               pANTITRACER(i,j) = pantitracer_sh_curr
-            else if (TLATD(i,j,iblock) > c10) then
-               pANTITRACER(i,j) = pantitracer_nh_curr
-            else
-               pANTITRACER(i,j) = pantitracer_sh_curr + (TLATD(i,j,iblock)+c10) &
-                  * 0.05_r8 * (pantitracer_nh_curr - pantitracer_sh_curr)
-            endif
-         endif
-      end do
-   end do
-
-!-----------------------------------------------------------------------
-!EOC
-
- end subroutine comp_pantitracer
 
 !***********************************************************************
 !BOP
@@ -1047,11 +702,11 @@ contains
    integer(int_kind)    :: i, j
    real (r8)            :: SST(nx_block,ny_block)
 
-   real (r8), parameter :: a = 3177.5_r8
-   real (r8), parameter :: b = -200.57_r8
-   real (r8), parameter :: c =    6.8865_r8
-   real (r8), parameter :: d =   -0.13335_r8
-   real (r8), parameter :: e =    0.0010877_r8
+   real (r8), parameter :: a = 2116.8_r8
+   real (r8), parameter :: b = -136.25_r8
+   real (r8), parameter :: c =    4.7353_r8
+   real (r8), parameter :: d =   -0.092307_r8
+   real (r8), parameter :: e =    0.000000697_r8
 
 !-----------------------------------------------------------------------
 
@@ -1072,75 +727,7 @@ contains
  end subroutine comp_antitracer_schmidt
 
 !***********************************************************************
-!BOP
-! !IROUTINE: comp_antitracer_sol_0
-! !INTERFACE:
 
- subroutine comp_antitracer_sol_0(LAND_MASK, SST, SSS, ANTITRACER_SOL_0)
-
-! !DESCRIPTION:
-!  Compute solubilities of ANTITRACERs at 1 atm.
-!  Ref: Bullister et al., 2002: The solubility of sulfur 
-!       hexafluoride in water and seawater, DSR, 49(1),
-!       doi:10.1016/S0967-0637(01)00051-6.
-!
-! !REVISION HISTORY:
-!  same as module
-
-! !USES:
-
-   use constants, only: T0_Kelvin
-
-! !INPUT PARAMETERS:
-
-   logical (log_kind), dimension(nx_block,ny_block) :: &
-      LAND_MASK          ! land mask for this block
-
-   real (r8), dimension(nx_block,ny_block) :: &
-      SST,             & ! sea surface temperature (C)
-      SSS                ! sea surface salinity (psu)
-
-! !OUTPUT PARAMETERS:
-
-   real (r8), dimension(nx_block,ny_block), intent(out) :: &
-      ANTITRACER_SOL_0  ! solubility of ANTITRACER at 1 atm (mol/l/atm)
-
-!EOP
-!BOC
-!-----------------------------------------------------------------------
-!  local variables
-!-----------------------------------------------------------------------
-
-   real (r8), parameter :: &
-      a1 = -96.5975_r8,    &
-      a2 = 139.883_r8,     &
-      a3 =  37.8193_r8,    &
-      a4 =   0.00000_r8,   &
-      b1 =   0.0310693_r8, &
-      b2 =  -0.0356385_r8, &
-      b3 =   0.00743254_r8
-
-   real (r8), dimension(nx_block,ny_block) :: &
-      SSTKp01  ! .01 * sea surface temperature (in Kelvin)
-
-!-----------------------------------------------------------------------
-
-   SSTKp01 = merge( ((SST + T0_Kelvin)* 0.01_r8), c1, LAND_MASK)
-
-   where (LAND_MASK)
-      ANTITRACER_SOL_0 = EXP(a1 + a2 / SSTKp01 &
-                        + a3 * LOG(SSTKp01) + a4 * SSTKp01 ** 2 &
-                        + SSS * (b1 + SSTKp01 * (b2 + b3 * SSTKp01)))
-   elsewhere
-      ANTITRACER_SOL_0 = c0
-   endwhere
-
-!-----------------------------------------------------------------------
-!EOC
-
- end subroutine comp_antitracer_sol_0
-
-!***********************************************************************
 !BOP
 ! !IROUTINE: antitracer_tavg_forcing
 ! !INTERFACE:
@@ -1171,11 +758,8 @@ contains
    do iblock = 1, nblocks_clinic
          call accumulate_tavg_field(ANTITRACER_SFLUX_TAVG(:,:,1,iblock),tavg_ANTITRACER_IFRAC,iblock,1)
          call accumulate_tavg_field(ANTITRACER_SFLUX_TAVG(:,:,2,iblock),tavg_ANTITRACER_XKW,iblock,1)
-         call accumulate_tavg_field(ANTITRACER_SFLUX_TAVG(:,:,3,iblock),tavg_ANTITRACER_ATM_PRESS,iblock,1)
-         call accumulate_tavg_field(ANTITRACER_SFLUX_TAVG(:,:,4,iblock),tavg_pANTITRACER,iblock,1)
-         call accumulate_tavg_field(ANTITRACER_SFLUX_TAVG(:,:,6,iblock),tavg_ANTITRACER_SCHMIDT,iblock,1)
-         call accumulate_tavg_field(ANTITRACER_SFLUX_TAVG(:,:,6,iblock),tavg_ANTITRACER_PV,iblock,1)
-         call accumulate_tavg_field(ANTITRACER_SFLUX_TAVG(:,:,7,iblock),tavg_ANTITRACER_surf_sat,iblock,1)
+         call accumulate_tavg_field(ANTITRACER_SFLUX_TAVG(:,:,3,iblock),tavg_ANTITRACER_SCHMIDT,iblock,1)
+         call accumulate_tavg_field(ANTITRACER_SFLUX_TAVG(:,:,4,iblock),tavg_ANTITRACER_PV,iblock,1)
    end do
 
    !$OMP END PARALLEL DO
