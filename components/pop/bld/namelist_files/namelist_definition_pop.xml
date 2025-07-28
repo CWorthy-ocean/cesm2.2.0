@@ -5050,6 +5050,16 @@ Default: 'Set by CESM scripts based on $OCN_TRACER_MODULES'
 </entry>
 
 <entry
+id="antitracer_on"
+type="logical"
+category="Passive Tracers"
+group="passive_tracers_on_nml" >
+Flag for using antitracer module.
+
+Default: 'Set by CESM scripts based on $OCN_TRACER_MODULES'
+</entry>
+
+<entry
 id="iage_on"
 type="logical"
 category="Passive Tracers"
@@ -5702,6 +5712,136 @@ category="Passive Tracers (SF6)"
 group="derived" >
 Default:
 </entry>
+
+<!-- - - - - - - - - - - - - - - - - - -->
+<!-- Group: antitracer_nml                  - -->
+<!-- - - - - - - - - - - - - - - - - - -->
+
+<entry
+id="init_antitracer_option"
+type="char*256"
+category="Passive Tracers (SF6)"
+group="antitracer_nml"
+valid_values="zero,restart,file" >
+Option for initialization of antitracer.
+
+Valid Values: 'zero', 'restart', 'file'
+Default: ccsm_$runtype
+</entry>
+
+<entry
+id="init_antitracer_init_file"
+type="char*256"
+category="Passive Tracers (SF6)"
+group="antitracer_nml"
+input_pathname="abs" >
+Filename for initializing antitracer (if init_antitracer_option='file').
+
+Default: 'same_as_TS'
+</entry>
+
+<entry
+id="init_antitracer_init_file_fmt"
+type="char*256"
+category="Passive Tracers (SF6)"
+group="antitracer_nml"
+valid_values="bin,nc" >
+init_antitracer_init_file format (binary or netCDF).
+
+Valid Values: 'bin', 'nc'
+Default: 'bin'
+</entry>
+
+!<entry
+!id="tracer_init_ext%mod_varname&sf6_nml"
+!type="dtype(1)%char*256"
+!category="Passive Tracers (SF6)"
+!group="derived" >
+!Default:
+!</entry>
+!
+!<entry
+!id="tracer_init_ext%filename&sf6_nml"
+!type="dtype(2)%char*256"
+!category="Passive Tracers (SF6)"
+!group="derived"
+!input_pathname="abs" >
+!Default:
+!</entry>
+!
+!<entry
+!id="tracer_init_ext%file_varname&sf6_nml"
+!type="dtype(1)%char*256"
+!category="Passive Tracers (SF6)"
+!group="derived" >
+!Default:
+!</entry>
+!
+!<entry
+!id="tracer_init_ext%file_fmt&sf6_nml"
+!type="dtype(1)%char*256"
+!category="Passive Tracers (SF6)"
+!group="derived" >
+!Default:
+!</entry>
+!
+!<entry
+!id="tracer_init_ext%scale_factor&sf6_nml"
+!type="dtype(1)%real"
+!category="Passive Tracers (SF6)"
+!group="derived" >
+!Default:
+!</entry>
+!
+!<entry
+!id="tracer_init_ext%default_val&sf6_nml"
+!type="dtype(1)%real"
+!category="Passive Tracers (SF6)"
+!group="derived" >
+!Default:
+!</entry>
+
+<entry
+id="antitracer_forcing_shr_stream_year_first"
+type="integer"
+category="Forcing (Ecosystem)"
+group="antitracer_nml" >
+Default: 1999
+</entry>       
+    
+<entry
+id="antitracer_forcing_shr_stream_year_last"
+type="integer"
+category="Forcing (Ecosystem)"
+group="antitracer_nml" >
+Default: 2019
+</entry>     
+    
+<entry
+id="antitracer_forcing_shr_stream_year_align"
+type="integer"
+category="Forcing (Ecosystem)"
+group="antitracer_nml" >
+Default: 347
+</entry>         
+
+<entry
+id="antitracer_forcing_shr_stream_file"
+type="char*256"
+category="Forcing (Ecosystem)"
+group="antitracer_nml" >
+Default: depends on experiment.
+</entry>             
+
+    
+<entry
+id="alk_forcing_shr_stream_scale_factor"
+type="real"
+category="Forcing (Ecosystem)"
+group="antitracer_nml" >
+Default: 1.0e4
+</entry>  
+
 
 <!-- - - - - - - - - - - - - - - - - - -->
 <!-- Group: abio_dic_dic14_nml       - -->

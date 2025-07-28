@@ -1207,6 +1207,9 @@
 <sf6_on>.false.</sf6_on>
 <sf6_on use_sf6="TRUE">.true.</sf6_on>
 
+<antitracer_on>.false.</antitracer_on>
+<antitracer_on use_antitracer="TRUE">.true.</antitracer_on>
+
 <abio_dic_dic14_on>.false.</abio_dic_dic14_on>
 <abio_dic_dic14_on use_abio="TRUE">.true.</abio_dic_dic14_on>
 
@@ -1273,6 +1276,18 @@
 
 <psf6_file>ocn/pop/res_indpt/forcing/sf6_atm_20160311.nc</psf6_file>
 <psf6_first_nonzero_year>1953</psf6_first_nonzero_year>
+
+<!---------------------------->
+<!--        antitracer_nml         -->
+<!---------------------------->
+
+<init_antitracer_init_file>same_as_TS</init_antitracer_init_file>
+
+<antitracer_forcing_shr_stream_year_first>1999</antitracer_forcing_shr_stream_year_first>
+<antitracer_forcing_shr_stream_year_last>2019</antitracer_forcing_shr_stream_year_last>
+<antitracer_forcing_shr_stream_year_align>347</antitracer_forcing_shr_stream_year_align>
+<antitracer_forcing_shr_stream_file>None</antitracer_forcing_shr_stream_file>
+<antitracer_forcing_shr_stream_scale_factor>1.0e4</antitracer_forcing_shr_stream_scale_factor> 
 
 <!---------------------------->
 <!--    abio_dic_dic14_nml  -->
