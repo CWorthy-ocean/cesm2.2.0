@@ -70,6 +70,12 @@
        sf6_init,                   &
        sf6_set_sflux,              &
        sf6_tavg_forcing
+   
+   use antitracer_mod, only:              &
+       antitracer_tracer_cnt,             &
+       antitracer_init,                   &
+       antitracer_set_sflux,              &
+       antitracer_tavg_forcing
 
    use iage_mod, only:             &
        iage_tracer_cnt,            &
@@ -167,11 +173,11 @@
 !-----------------------------------------------------------------------
 
    logical (log_kind) ::  &
-      ecosys_on, cfc_on, sf6_on, iage_on,&
+      ecosys_on, cfc_on, sf6_on, antitracer_on, iage_on,&
       abio_dic_dic14_on, IRF_on
 
    namelist /passive_tracers_on_nml/  &
-      ecosys_on, cfc_on, sf6_on, iage_on, &
+      ecosys_on, cfc_on, sf6_on, antitracer_on, iage_on, &
       abio_dic_dic14_on, IRF_on
 
 
@@ -184,6 +190,7 @@
       iage_ind_begin,            iage_ind_end,           &
       cfc_ind_begin,             cfc_ind_end,            &
       sf6_ind_begin,             sf6_ind_end,            &
+      antitracer_ind_begin,      antitracer_ind_end,     &
       abio_dic_dic14_ind_begin,  abio_dic_dic14_ind_end, &
       IRF_ind_begin,             IRF_ind_end
 
@@ -269,6 +276,7 @@
    ecosys_on         = .false.
    cfc_on            = .false.
    sf6_on            = .false.
+   antitracer_on     = .false.
    iage_on           = .false.
    abio_dic_dic14_on = .false.
    IRF_on            = .false.
@@ -306,6 +314,7 @@
    call broadcast_scalar(ecosys_on,         master_task)
    call broadcast_scalar(cfc_on,            master_task)
    call broadcast_scalar(sf6_on,            master_task)
+   call broadcast_scalar(antitracer_on,     master_task)
    call broadcast_scalar(iage_on,           master_task)
    call broadcast_scalar(abio_dic_dic14_on, master_task)
    call broadcast_scalar(IRF_on,            master_task)
@@ -320,6 +329,10 @@
 
    if (sf6_on .and. .not. registry_match('lcoupled')) then
       call exit_POP(sigAbort,'sf6 module requires the flux coupler')
+   end if
+   
+   if (antitracer_on .and. .not. registry_match('lcoupled')) then
+      call exit_POP(sigAbort,'antitracer module requires the flux coupler')
    end if
 
    if (abio_dic_dic14_on .and. .not. registry_match('lcoupled')) then
@@ -351,6 +364,11 @@
    if (sf6_on) then
       call set_tracer_indices('SF6', sf6_tracer_cnt, cumulative_nt,  &
                               sf6_ind_begin, sf6_ind_end)
+   end if
+   
+   if (antitracer_on) then
+      call set_tracer_indices('ANTITRACER', antitracer_tracer_cnt, cumulative_nt,  &
+                              antitracer_ind_begin, antitracer_ind_end)
    end if
 
    if (iage_on) then
@@ -450,6 +468,24 @@
       if (errorCode /= POP_Success) then
          call POP_ErrorSet(errorCode, &
             'init_passive_tracers: error in sf6_init')
+         return
+      endif
+
+   end if
+
+!-----------------------------------------------------------------------
+!  ANTITRACER block
+!-----------------------------------------------------------------------
+
+   if (antitracer_on) then
+      call antitracer_init(antitracer_ind_begin, init_ts_file_fmt, read_restart_filename, &
+                    tracer_d(antitracer_ind_begin:antitracer_ind_end), &
+                    TRACER(:,:,:,antitracer_ind_begin:antitracer_ind_end,:,:), &
+                    errorCode)
+
+      if (errorCode /= POP_Success) then
+         call POP_ErrorSet(errorCode, &
+            'init_passive_tracers: error in antitracer_init')
          return
       endif
 
@@ -904,6 +940,10 @@
 !-----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
+!  ANTITRACER does not have source-sink terms in interior
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
 !  Ideal Age (IAGE) block
 !-----------------------------------------------------------------------
 
@@ -1034,6 +1074,10 @@
 
 !-----------------------------------------------------------------------
 !  SF6 does not compute and store 3D source-sink terms
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
+!  ANTITRACER does not compute and store 3D source-sink terms
 !-----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
@@ -1182,6 +1226,17 @@
    end if
 
 !-----------------------------------------------------------------------
+!  ANTITRACER block
+!-----------------------------------------------------------------------
+
+   if (antitracer_on) then
+      call antitracer_set_sflux(U10_SQR, ICE_FRAC, SST             &
+         TRACER(:,:,1,antitracer_ind_begin:antitracer_ind_end,oldtime,:), &
+         TRACER(:,:,1,antitracer_ind_begin:antitracer_ind_end,curtime,:), &
+         STF(:,:,antitracer_ind_begin:antitracer_ind_end,:))
+   end if
+
+!-----------------------------------------------------------------------
 !  IAGE does not have surface fluxes
 !-----------------------------------------------------------------------
 
@@ -1291,6 +1346,10 @@
 !-----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
+!  ANTITRACER does not write additional restart fields
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
 !  IAGE does not write additional restart fields
 !-----------------------------------------------------------------------
 
@@ -1346,6 +1405,10 @@
 
 !-----------------------------------------------------------------------
 !  SF6 does not reset values
+!-----------------------------------------------------------------------
+
+!-----------------------------------------------------------------------
+!  ANTITRACER does not reset values
 !-----------------------------------------------------------------------
 
 !-----------------------------------------------------------------------
@@ -1621,6 +1684,14 @@
 
    if (sf6_on) then
       call sf6_tavg_forcing
+   end if
+
+!-----------------------------------------------------------------------
+!  ANTITRACER block
+!-----------------------------------------------------------------------
+
+   if (antitracer_on) then
+      call antitracer_tavg_forcing
    end if
 
 !-----------------------------------------------------------------------
