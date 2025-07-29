@@ -239,7 +239,7 @@ contains
     antitracer_forcing_shr_stream_year_first = 1999
     antitracer_forcing_shr_stream_year_last = 2019
     antitracer_forcing_shr_stream_year_align = 347
-    antitracer_forcing_shr_stream_file = '/glade/work/mclong/o-nets/data/forcing/alk-forcing.001.nc'
+    antitracer_forcing_shr_stream_file = 'unknown'
     antitracer_forcing_shr_stream_scale_factor = 1.0e4_r8  ! convert from 1/m^2/s to 1/cm^2/s
 
    if (my_task == master_task) then
@@ -482,7 +482,6 @@ contains
 !-----------------------------------------------------------------------
 
    character(*), parameter :: subname = 'antitracer_mod:antitracer_init_sflux'
-
    integer (int_kind) :: &
       n,                 & ! index for looping over tracers
       iblock               ! index for looping over blocks
@@ -490,21 +489,22 @@ contains
    real (r8), dimension (nx_block,ny_block,12,max_blocks_clinic), target :: &
       WORK_READ            ! temporary space to read in fields
 
-!-----------------------------------------------------------------------
-   do n = 1, size(interior_strdata_inputlist_ptr)
-     call POP_strdata_create(surface_strdata_inputlist_ptr(n))
-   end do
+   if (present(strdata_inputlist_ptr)) then
+     call POP_strdata_type_set(strdata_input_var, &
+       file_name   = filename,     &
+       field       = file_varname, &
+       timer_label = 'antitracer_file',      &
+       year_first  = year_first,   &
+       year_last   = year_last,    &
+       year_align  = year_align,   &
+       depth_flag  = (rank == 3),       &
+       tintalgo    = tintalgo,          &
+       taxMode     = taxMode)
 
-   call POP_strdata_type_set(strdata_input_var, &
-     file_name   = this%filename,     &
-     field       = this%file_varname, &
-     timer_label = 'marbl_file',      &
-     year_first  = this%year_first,   &
-     year_last   = this%year_last,    &
-     year_align  = this%year_align,   &
-     depth_flag  = (rank == 3),       &
-     tintalgo    = tintalgo,          &
-     taxMode     = taxMode)
+     do n = 1, size(strdata_inputlist_ptr)
+       call POP_strdata_create(strdata_inputlist_ptr(n))
+     end do
+   end if
 
 !-----------------------------------------------------------------------
 !EOC
@@ -557,13 +557,12 @@ contains
 
    integer (int_kind) :: &
       iblock             ! block index
-
+   
    real (r8), dimension(nx_block,ny_block,max_blocks_clinic) :: &
       IFRAC_USED,      & ! used ice fraction (non-dimensional)
       XKW_USED,        & ! part of piston velocity (cm/s)
 
    real (r8), dimension(nx_block,ny_block) :: &
-      !SURF_VALS,       & ! filtered surface tracer values
       ANTITRACER_SCHMIDT,   & ! ANTITRACER Schmidt number
       XKW_ICE,         & ! common portion of piston vel., (1-fice)*xkw (cm/s)
       PV,              & ! piston velocity (cm/s)
@@ -571,45 +570,52 @@ contains
 !-----------------------------------------------------------------------
 
    call timer_start(antitracer_sflux_timer)
+    
+!-----------------------------------------------------------------------
+! advance strdata_inputlist_ptr entries
+!-----------------------------------------------------------------------
+
+   call POP_strdata_advance(strdata_inputlist_ptr(:))
 
 !-----------------------------------------------------------------------
 !   read antitracer forcing data
 !-----------------------------------------------------------------------
 
-   call POP_strdata_advance(surface_strdata_inputlist_ptr(:))
+   var_ind = 1
 
-   stream_index = metadata%field_file_info%strdata_inputlist_ind
-   var_ind      = metadata%field_file_info%strdata_var_ind
+   do index = 1, size(strdata_inputlist_ptr)
+     n = 0
+     do iblock = 1, nblocks_clinic
+        this_block = get_block(blocks_clinic(iblock), iblock)
+        do j = this_block%jb, this_block%je
+           do i = this_block%ib, this_block%ie
+              n = n + 1
+              shr_stream(i,j,iblock) = strdata_inputlist_ptr(index)%sdat%avs(1)%rAttr(var_ind,n)
+           enddo
+        enddo
+     enddo
 
-   n = 0
-   do iblock = 1, nblocks_clinic
-      this_block = get_block(blocks_clinic(iblock), iblock)
-      do j = this_block%jb, this_block%je
-         do i = this_block%ib, this_block%ie
-            n = n + 1
-            shr_stream(i,j,iblock) = surface_strdata_inputlist_ptr(stream_index)%sdat%avs(1)%rAttr(var_ind,n)
-         enddo
-      enddo
-   enddo
+     call POP_HaloUpdate(shr_stream, POP_haloClinic, &
+          POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 0.0_r8)
+     if (errorCode /= POP_Success) then
+        call document(subname, 'error updating halo for shr_stream field')
+        call exit_POP(sigAbort, 'Stopping in ' // subname)
+     endif
 
-   call POP_HaloUpdate(shr_stream, POP_haloClinic, &
-        POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 0.0_r8)
-   if (errorCode /= POP_Success) then
-      call document(subname, 'error updating halo for shr_stream field')
-      call exit_POP(sigAbort, 'Stopping in ' // subname)
-   endif
+     do iblock = 1, nblocks_clinic
+       where (land_mask(:,:,iblock))
+         STF_MODULE(:,:,antitracer_ind,iblock) = shr_stream(:,:,iblock)
+       elsewhere
+         STF_MODULE(:,:,antitracer_ind,iblock) = c0
+       endwhere
+     enddo
 
-   do iblock = 1, nblocks_clinic
-      where (land_mask(:,:,iblock))
-         forcing_field%field_0d(:,:,iblock) = shr_stream(:,:,iblock)
-      endwhere
-   enddo
 
-   if (metadata%ltime_varying) then
-      do iblock = 1, nblocks_clinic
-         call apply_unit_conv_factor(land_mask(:,:,iblock), forcing_field, iblock)
-      enddo
-   end if
+     do iblock = 1, nblocks_clinic
+       where (land_mask(:,:,iblock))
+         STF_MODULE(:,:,antitracer_ind,iblock) = antitracer_forcing_shr_stream_scale_factor * STF_MODULE(:,:,antitracer_ind,iblock)
+     enddo
+   end do  ! index
 
 !-----------------------------------------------------------------------
 !   compute air-sea gas exchange
@@ -644,12 +650,10 @@ contains
          XKW_ICE = (c1 - IFRAC_USED(:,:,iblock)) * XKW_USED(:,:,iblock)
          PV = XKW_ICE * sqrt(660.0_r8 / ANTITRACER_SCHMIDT)
          ANTITRACER_SFLUX_TAVG(:,:,4,iblock) = PV
-                  
-         !SURF_VALS = p5*(SURF_VALS_OLD(:,:,sf6_ind,iblock) + &
-         !                SURF_VALS_CUR(:,:,sf6_ind,iblock))
 
          STF_MODULE(:,:,antitracer_ind,iblock) = &
-            (PV / BETA) * SURF_VALS
+            STF_MODULE(:,:,antitracer_ind,iblock) + &
+            (PV / BETA) * SURF_VALS(:,:,iblock)
 
       elsewhere
          STF_MODULE(:,:,antitracer_ind,iblock) = c0
