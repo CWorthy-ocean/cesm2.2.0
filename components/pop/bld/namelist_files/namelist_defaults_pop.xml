@@ -1281,13 +1281,19 @@
 <!--        antitracer_nml         -->
 <!---------------------------->
 
-<init_antitracer_init_file>same_as_TS</init_antitracer_init_file>
+<antitracer_tracer_cnt>1</antitracer_tracer_cnt>
 
-<antitracer_forcing_shr_stream_year_first>1999</antitracer_forcing_shr_stream_year_first>
-<antitracer_forcing_shr_stream_year_last>2019</antitracer_forcing_shr_stream_year_last>
-<antitracer_forcing_shr_stream_year_align>347</antitracer_forcing_shr_stream_year_align>
-<antitracer_forcing_shr_stream_file>None</antitracer_forcing_shr_stream_file>
-<antitracer_forcing_shr_stream_scale_factor>1.0e4</antitracer_forcing_shr_stream_scale_factor> 
+<init_antitracer_option>zero</init_antitracer_option>
+<init_antitracer_init_file>same_as_TS</init_antitracer_init_file>
+<init_antitracer_init_file_fmt>bin</init_antitracer_init_file_fmt>
+
+<antitracer_forcing_nml_array(1)%name>ANTITRACER1</antitracer_forcing_nml_array(1)%name>
+<antitracer_forcing_nml_array(1)%file>unknown</antitracer_forcing_nml_array(1)%file>
+<antitracer_forcing_nml_array(1)%varname>alk_forcing</antitracer_forcing_nml_array(1)%varname>
+<antitracer_forcing_nml_array(1)%year_first>1999</antitracer_forcing_nml_array(1)%year_first>
+<antitracer_forcing_nml_array(1)%year_last>2019</antitracer_forcing_nml_array(1)%year_last>
+<antitracer_forcing_nml_array(1)%year_align>347</antitracer_forcing_nml_array(1)%year_align>
+<antitracer_forcing_nml_array(1)%scale_factor>1.0e4</antitracer_forcing_nml_array(1)%scale_factor>
 
 <!---------------------------->
 <!--    abio_dic_dic14_nml  -->

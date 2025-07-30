@@ -5718,24 +5718,33 @@ Default:
 <!-- - - - - - - - - - - - - - - - - - -->
 
 <entry
+id="antitracer_tracer_cnt"
+type="integer"
+category="Passive Tracers (Antitracer)"
+group="antitracer_nml" >
+Number of independent antitracer modules to enable.
+Default: 1
+</entry>
+
+<entry
 id="init_antitracer_option"
 type="char*256"
-category="Passive Tracers (SF6)"
+category="Passive Tracers (Antitracer)"
 group="antitracer_nml"
 valid_values="zero,restart,file" >
-Option for initialization of antitracer.
+Option for initialization of antitracers.
 
 Valid Values: 'zero', 'restart', 'file'
-Default: ccsm_$runtype
+Default: 'zero'
 </entry>
 
 <entry
 id="init_antitracer_init_file"
 type="char*256"
-category="Passive Tracers (SF6)"
+category="Passive Tracers (Antitracer)"
 group="antitracer_nml"
 input_pathname="abs" >
-Filename for initializing antitracer (if init_antitracer_option='file').
+Filename for initializing antitracers (if init_antitracer_option='file').
 
 Default: 'same_as_TS'
 </entry>
@@ -5743,7 +5752,7 @@ Default: 'same_as_TS'
 <entry
 id="init_antitracer_init_file_fmt"
 type="char*256"
-category="Passive Tracers (SF6)"
+category="Passive Tracers (Antitracer)"
 group="antitracer_nml"
 valid_values="bin,nc" >
 init_antitracer_init_file format (binary or netCDF).
@@ -5752,96 +5761,69 @@ Valid Values: 'bin', 'nc'
 Default: 'bin'
 </entry>
 
-!<entry
-!id="tracer_init_ext%mod_varname&sf6_nml"
-!type="dtype(1)%char*256"
-!category="Passive Tracers (SF6)"
-!group="derived" >
-!Default:
-!</entry>
-!
-!<entry
-!id="tracer_init_ext%filename&sf6_nml"
-!type="dtype(2)%char*256"
-!category="Passive Tracers (SF6)"
-!group="derived"
-!input_pathname="abs" >
-!Default:
-!</entry>
-!
-!<entry
-!id="tracer_init_ext%file_varname&sf6_nml"
-!type="dtype(1)%char*256"
-!category="Passive Tracers (SF6)"
-!group="derived" >
-!Default:
-!</entry>
-!
-!<entry
-!id="tracer_init_ext%file_fmt&sf6_nml"
-!type="dtype(1)%char*256"
-!category="Passive Tracers (SF6)"
-!group="derived" >
-!Default:
-!</entry>
-!
-!<entry
-!id="tracer_init_ext%scale_factor&sf6_nml"
-!type="dtype(1)%real"
-!category="Passive Tracers (SF6)"
-!group="derived" >
-!Default:
-!</entry>
-!
-!<entry
-!id="tracer_init_ext%default_val&sf6_nml"
-!type="dtype(1)%real"
-!category="Passive Tracers (SF6)"
-!group="derived" >
-!Default:
-!</entry>
+<entry
+id="antitracer_forcing_nml_array%name"
+type="char*256(9)"
+category="Passive Tracers (Antitracer)"
+group="antitracer_nml" >
+Names for each individual antitracer. Used in diagnostics and namelist generation.
+Default: 'ANTITRACER1'
+</entry>
 
 <entry
-id="antitracer_forcing_shr_stream_year_first"
-type="integer"
-category="Forcing (Ecosystem)"
+id="antitracer_forcing_nml_array%file"
+type="char*256(9)"
+category="Passive Tracers (Antitracer)"
+group="antitracer_nml"
+input_pathname="abs" >
+Path to the forcing file for each antitracer.
+Default: 'unknown' (requires user specification)
+</entry>
+
+<entry
+id="antitracer_forcing_nml_array%varname"
+type="char*256(9)"
+category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
+Variable name within the forcing file for each antitracer.
+Default: 'alk_forcing'
+</entry>
+
+<entry
+id="antitracer_forcing_nml_array%year_first"
+type="integer(9)"
+category="Passive Tracers (Antitracer)"
+group="antitracer_nml" >
+First year in the forcing data stream for each antitracer.
 Default: 1999
-</entry>       
-    
+</entry>
+
 <entry
-id="antitracer_forcing_shr_stream_year_last"
-type="integer"
-category="Forcing (Ecosystem)"
+id="antitracer_forcing_nml_array%year_last"
+type="integer(9)"
+category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
+Last year in the forcing data stream for each antitracer.
 Default: 2019
-</entry>     
-    
+</entry>
+
 <entry
-id="antitracer_forcing_shr_stream_year_align"
-type="integer"
-category="Forcing (Ecosystem)"
+id="antitracer_forcing_nml_array%year_align"
+type="integer(9)"
+category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
+Align this forcing stream's first year with this model year.
 Default: 347
-</entry>         
+</entry>
 
 <entry
-id="antitracer_forcing_shr_stream_file"
-type="char*256"
-category="Forcing (Ecosystem)"
+id="antitracer_forcing_nml_array%scale_factor"
+type="real(9)"
+category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
-Default: depends on experiment.
-</entry>             
-
-    
-<entry
-id="alk_forcing_shr_stream_scale_factor"
-type="real"
-category="Forcing (Ecosystem)"
-group="antitracer_nml" >
+Scaling factor for the forcing data (e.g., for unit conversion) for each antitracer.
 Default: 1.0e4
-</entry>  
-
+</entry>
 
 <!-- - - - - - - - - - - - - - - - - - -->
 <!-- Group: abio_dic_dic14_nml       - -->
