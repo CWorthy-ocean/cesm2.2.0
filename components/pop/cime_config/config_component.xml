@@ -117,10 +117,11 @@
       <value compset="^5505">cfc sf6</value>
       <value compset="_POP2%[^_]*ECO">ecosys</value>
       <value compset="_POP2%[^_]*ABIO-DIC">abio_dic_dic14</value>
+      <value compset="_POP2%[^_]*ANTI">antitracer</value>
     </values>
     <group>build_component_pop</group>
     <file>env_build.xml</file>
-    <desc>Optional ocean tracers.  Valid values are Any combination of: iage cfc sf6 IRF ecosys abio_dic_dic14</desc>
+    <desc>Optional ocean tracers.  Valid values are Any combination of: iage cfc sf6 IRF ecosys abio_dic_dic14 antitracer</desc>
   </entry>
 
   <entry id="OCN_TRACER_MODULES_OPT">
@@ -130,6 +131,14 @@
     <group>build_component_pop</group>
     <file>env_build.xml</file>
     <desc>Optional ocean tracers option (keyword=value pairs)</desc>
+  </entry>
+
+  <entry id="ANTITRACER_TRACER_CNT">
+    <type>integer</type> <desc>Number of antitracers to enable in the POP model. This is passed to antitracer_nml:antitracer_tracer_cnt.</desc>
+    <values>
+      <value>0</value> </values>
+    <group>build_component_pop</group>
+    <file>env_build.xml</file>
   </entry>
 
   <entry id="OCN_COUPLING">

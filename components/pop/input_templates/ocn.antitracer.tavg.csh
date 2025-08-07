@@ -35,20 +35,3 @@ $s1  ANTITRACER_XKW
 $s1  ANTITRACER_SCHMIDT
 $s1  ANTITRACER_PV
 EOF
-
-# Loop through each antitracer to add its concentration and flux to the tavg_contents
-@ n = 1
-while ($n <= $num_antitracers)
-    # Append the tracer's concentration
-    echo "$s1  ${ANTITRACER_TRACER_NAMES[$n]}" >> $CASEROOT/Buildconf/popconf/antitracer_tavg_contents
-    # Append the tracer's surface flux (assuming your Fortran module names it ANTITRACER_SFLUX or similar)
-    # NOTE: You need to define the name for the surface flux if it's not simply the tracer name.
-    # If the surface flux for Antitracer_N is named "ANTITRACER_N_SFLUX" in your Fortran output:
-    echo "$s1  ${ANTITRACER_TRACER_NAMES[$n]}_SFLUX" >> $CASEROOT/Buildconf/popconf/antitracer_tavg_contents
-    # If your tracer name is already `ANTITRACER1` and you want that as the variable, it works.
-    # If you wanted a specific variable like the surface tracer itself or its flux:
-    # Example for surface tracer value:
-    # echo "$s1  TS_OCN_${ANTITRACER_TRACER_NAMES[$n]}" >> $CASEROOT/Buildconf/popconf/antitracer_tavg_contents
-
-    @ n = $n + 1
-end

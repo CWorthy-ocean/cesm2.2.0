@@ -2110,8 +2110,19 @@ for my $module (@OCN_TAVG_MODULES) {
 
   my $file = "ocn.${module}.tavg.csh";
   my $my_stream = $numcols+1;
-  my $env = "env CASEROOT=$CASEROOT CASEBUILD=$CASEBUILD OCN_GRID=$OCN_GRID OCN_TAVG_TRACER_BUDGET=$OCN_TAVG_TRACER_BUDGET POPROOT=$SRCROOT/components/pop";
   my @tavg_script_args = module_tavg_script_args($nl, $module, $cfg);
+
+  # Retrieve the antitracer variables from the %xmlvars hash
+  my $antitracer_cnt = $xmlvars{'ANTITRACER_TRACER_CNT'};
+
+  # Construct the environment string for the subprocess call
+  my $env = "env CASEROOT=$CASEROOT CASEBUILD=$CASEBUILD OCN_GRID=$OCN_GRID OCN_TAVG_TRACER_BUDGET=$OCN_TAVG_TRACER_BUDGET POPROOT=$SRCROOT/components/pop";
+  
+  # Add the antitracer variables to the environment only when processing the antitracer module
+  if ($module eq "antitracer") {
+      $env .= " ANTITRACER_TRACER_CNT=$antitracer_cnt";
+  }
+
   if (-f "${my_path}/$file"){
       $sysmod = "$env ${my_path}/${file} $my_stream @tavg_script_args";
       system($sysmod) == 0 or die "ERROR: $sysmod failed: $?\n";
