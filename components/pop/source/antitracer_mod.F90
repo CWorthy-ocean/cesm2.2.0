@@ -65,7 +65,7 @@ module antitracer_mod
 ! !PUBLIC MEMBER FUNCTIONS:
 
     public :: &
-        antitracer_tracer_cnt, & ! Now a variable, not a parameter
+        antitracer_tracer_cnt, &
         antitracer_init, &
         antitracer_set_sflux,  &
         antitracer_tavg_forcing
@@ -105,8 +105,8 @@ module antitracer_mod
         integer(int_kind)   :: year_last
         integer(int_kind)   :: year_align
         real(r8)            :: scale_factor
-        integer(int_kind)   :: strdata_inputlist_ind ! Index in module's surface_strdata_inputlist_ptr
-        integer(int_kind)   :: strdata_var_ind       ! Index for the variable within the strdata entry
+        integer(int_kind)   :: surface_strdata_inputlist_ind ! Index in module's surface_strdata_inputlist_ptr
+        integer(int_kind)   :: surface_strdata_var_ind       ! Index for the variable within the strdata entry
     end type antitracer_forcing_info_type
 
     type(antitracer_forcing_info_type), dimension(:), allocatable :: all_antitracer_forcing_info
@@ -143,7 +143,7 @@ module antitracer_mod
     integer (int_kind) :: antitracer_sflux_timer
 
     ! Define BETA here, assuming it's a general constant for gas exchange
-    real(r8), parameter :: BETA = 1.0_r8 ! Placeholder value, adjust as needed based on physics
+    real(r8), parameter :: BETA = 1.0_r8 ! Placeholder value
 
 !EOC
 !***********************************************************************
@@ -172,7 +172,7 @@ contains
     use grid,       only: KMT, n_topo_smooth, fill_points
     use io_types,   only: nml_in, nml_filename
     use timers,     only: get_timer
-    use to_char_mod, only: to_char ! for converting integer to character in name generation
+    use time_management, only: int_to_char
 
     use passive_tracer_tools, only: init_forcing_monthly_every_ts, &
         rest_read_tracer_block, file_read_tracer_block
@@ -198,7 +198,7 @@ contains
     ! TRACER_MODULE is typically allocated in the main model driver,
     ! so its last dimension is passed in as `:`, and its actual size
     ! for the tracer dimension must be >= antitracer_tracer_cnt.
-    real (r8), dimension(nx_block,ny_block,km,:,3,max_blocks_clinic), &
+    real (r8), dimension(nx_block,ny_block,km,antitracer_tracer_cnt,3,max_blocks_clinic), &
       intent(inout) :: TRACER_MODULE
 
 ! !OUTPUT PARAMETERS:
@@ -215,9 +215,10 @@ contains
     character(*), parameter :: subname = 'antitracer_mod:antitracer_init'
 
     character(char_len) :: &
-      init_antitracer_option,      & ! option for initialization of bgc
-      init_antitracer_init_file,    & ! filename for option 'file'
-      init_antitracer_init_file_fmt    ! file format for option 'file'
+      init_antitracer_option,      &   ! option for initialization of bgc
+      init_antitracer_init_file,    &  ! filename for option 'file'
+      init_antitracer_init_file_fmt, & ! file format for option 'file'
+      n_char 
 
     integer (int_kind) :: &
       n,                       & ! index for looping over tracers
@@ -274,7 +275,7 @@ contains
         ! of the namelist or accessible without errors from other fields.
         ! A more robust way might be to read the whole namelist into a buffer and parse.
         ! For simplicity, assuming it's accessible.
-        read(nml_in, nml=antitracer_nml,iostat=nml_error) antitracer_tracer_cnt
+        read(nml_in, nml=antitracer_nml, iostat=nml_error)
         rewind(nml_in) ! Rewind to read full namelist later, if successful
         close(nml_in)
     endif
@@ -302,9 +303,10 @@ contains
 
       ! Default forcing info for each antitracer.
       ! Names are generated automatically if not provided in namelist.
-      antitracer_forcing_nml_array(n)%name         = 'ANTITRACER' // trim(adjustl(to_char(n)))
+      call int_to_char(3, n, n_char)
+      antitracer_forcing_nml_array(n)%name         = 'ANTITRACER' // n_char
       antitracer_forcing_nml_array(n)%file         = 'unknown'
-      antitracer_forcing_nml_array(n)%varname      = 'antitracer_forcing' // trim(adjustl(to_char(n)))
+      antitracer_forcing_nml_array(n)%varname      = 'antitracer_forcing' // n_char
       antitracer_forcing_nml_array(n)%year_first   = 1999
       antitracer_forcing_nml_array(n)%year_last    = 2019
       antitracer_forcing_nml_array(n)%year_align   = 347
@@ -329,7 +331,7 @@ contains
     call broadcast_scalar(nml_error, master_task)
     if (nml_error /= 0) then
       call document(subname, 'antitracer_nml not found or could not be read after allocation.')
-      call exit_POP(sigAbort, 'Stopping in ' // / subname)
+      call exit_POP(sigAbort, 'Stopping in ' // subname)
     endif
 
 !-----------------------------------------------------------------------
@@ -424,8 +426,7 @@ contains
       if (init_antitracer_init_file == 'same_as_TS') then
           if (read_restart_filename == 'undefined') then
              call document(subname, 'no restart file to read ANTITRACERs from')
-             call exit_POP(sigAbort, 'stopping in ' //&
-                                     / subname)
+             call exit_POP(sigAbort, 'stopping in ' // subname)
           endif
           antitracer_restart_filename = read_restart_filename
           init_antitracer_init_file_fmt = init_ts_file_fmt
@@ -601,8 +602,8 @@ contains
     character(*), parameter :: subname = 'antitracer_mod:antitracer_init_sflux'
     integer (int_kind) :: &
       n_tracer, m, n_strdata_entries ! Loop indices and size tracking
-    type (strdata_input_type)           :: strdata_input_var ! temporary for setting
-    type (strdata_input_type), pointer  :: strdata_inputlist_tmp_ptr(:) ! temporary for reallocation
+    type (strdata_input_type)           :: surface_strdata_input_var ! temporary for setting
+    type (strdata_input_type), pointer  :: surface_strdata_inputlist_tmp_ptr(:) ! temporary for reallocation
 
 !-----------------------------------------------------------------------
 ! Loop through each antitracer and set up its forcing data source.
@@ -621,7 +622,7 @@ contains
 
             ! Set up a temporary strdata_input_type for the current antitracer forcing.
             ! This defines the file, variable, and time parameters for shr_strdata.
-            call POP_strdata_type_set(strdata_input_var, &
+            call POP_strdata_type_set(surface_strdata_input_var, &
                                       file_name = forcing_info%filename,      &
                                       field = forcing_info%file_varname,      &
                                       timer_label = 'antitracer_file_' // trim(forcing_info%name), &
@@ -633,40 +634,40 @@ contains
                                       taxMode = 'cycle')         ! Cycle or extend time series
 
             n_strdata_entries = size(surface_strdata_inputlist_ptr)
-            forcing_info%strdata_inputlist_ind = 0 ! Initialize to 'not found' state
+            forcing_info%surface_strdata_inputlist_ind = 0 ! Initialize to 'not found' state
 
             ! Check if a matching strdata entry (same file, same years, etc.) already exists
             ! in the global `surface_strdata_inputlist_ptr` array.
             do m = 1, n_strdata_entries
-                if (POP_strdata_type_match(strdata_input_var, surface_strdata_inputlist_ptr(m))) then
+                if (POP_strdata_type_match(surface_strdata_input_var, surface_strdata_inputlist_ptr(m))) then
                     ! If a match is found, append the current tracer's variable name to the existing entry's field list.
                     call POP_strdata_type_append_field(forcing_info%file_varname, surface_strdata_inputlist_ptr(m))
-                    forcing_info%strdata_inputlist_ind = m ! Store the index of this shared entry
+                    forcing_info%surface_strdata_inputlist_ind = m ! Store the index of this shared entry
                     exit ! Found a match, stop searching for this tracer
                 endif
             end do
 
             ! If no match was found, create a new entry in `surface_strdata_inputlist_ptr`.
-            if (forcing_info%strdata_inputlist_ind == 0) then
+            if (forcing_info%surface_strdata_inputlist_ind == 0) then
                 n_strdata_entries = n_strdata_entries + 1
                 ! Reallocate the pointer array to accommodate the new entry
-                allocate(strdata_inputlist_tmp_ptr(n_strdata_entries))
+                allocate(surface_strdata_inputlist_tmp_ptr(n_strdata_entries))
                 ! Copy existing entries to the new larger array
                 do m = 1, n_strdata_entries - 1
-                    call POP_strdata_type_cp(surface_strdata_inputlist_ptr(m), strdata_inputlist_tmp_ptr(m))
+                    call POP_strdata_type_cp(surface_strdata_inputlist_ptr(m), surface_strdata_inputlist_tmp_ptr(m))
                 end do
                 deallocate(surface_strdata_inputlist_ptr)
-                surface_strdata_inputlist_ptr => strdata_inputlist_tmp_ptr
+                surface_strdata_inputlist_ptr => surface_strdata_inputlist_tmp_ptr
 
                 ! Copy the new `strdata_input_var` (current tracer's details) to the new slot
-                call POP_strdata_type_cp(strdata_input_var, surface_strdata_inputlist_ptr(n_strdata_entries))
-                forcing_info%strdata_inputlist_ind = n_strdata_entries ! Store the index of the new entry
+                call POP_strdata_type_cp(surface_strdata_input_var, surface_strdata_inputlist_ptr(n_strdata_entries))
+                forcing_info%surface_strdata_inputlist_ind = n_strdata_entries ! Store the index of the new entry
             endif
 
             ! Store the variable's index within the `shr_strdata` object's field list.
             ! This tells `sdat%avs` which variable to retrieve.
-            forcing_info%strdata_var_ind = POP_strdata_type_field_count( &
-                surface_strdata_inputlist_ptr(forcing_info%strdata_inputlist_ind))
+            forcing_info%surface_strdata_var_ind = POP_strdata_type_field_count( &
+                surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind))
 
         end associate ! forcing_info
     end do ! n_tracer
@@ -706,6 +707,7 @@ contains
 
     use constants, only: xkw_coeff !, p5
     use timers, only: timer_start, timer_stop
+    use domain,                 only : blocks_clinic
 
 ! !INPUT PARAMETERS:
 
@@ -729,9 +731,10 @@ contains
 !-----------------------------------------------------------------------
 ! local variables
 !-----------------------------------------------------------------------
+    character(*), parameter :: subname = 'antitracer_mod:antitracer_set_sflux'
 
     integer (int_kind) :: &
-      iblock, n_tracer ! block and tracer indices
+      iblock, n_tracer, m ! block and tracer indices
 
     ! These variables are computed per-block and are common for all antitracers
     ! for gas exchange calculations.
@@ -794,11 +797,11 @@ contains
 
       ! Calculate XKW_ICE and PV based on common parameters
       where (LAND_MASK(:,:,iblock))
-          XKW_ICE(:,:,iblock) = (c1 - IFRAC_USED(:,:,iblock)) * XKW_USED(:,:,iblock)
-          PV(:,:,iblock) = XKW_ICE(:,:,iblock) * sqrt(660.0_r8 / ANTITRACER_SCHMIDT(:,:))
+          XKW_ICE = (c1 - IFRAC_USED(:,:,iblock)) * XKW_USED(:,:,iblock)
+          PV = XKW_ICE * sqrt(660.0_r8 / ANTITRACER_SCHMIDT)
       elsewhere
-          XKW_ICE(:,:,iblock) = c0
-          PV(:,:,iblock) = c0
+          XKW_ICE(:,:) = c0
+          PV(:,:) = c0
       endwhere
     end do
 
@@ -823,8 +826,6 @@ contains
     do n_tracer = 1, antitracer_tracer_cnt
         associate(forcing_info => all_antitracer_forcing_info(n_tracer))
 
-            ! Read this specific antitracer's forcing data from the relevant shr_strdata object.
-            ! `rAttr` typically provides a 1D linear array of data for the local process/block.
             do iblock = 1, nblocks_clinic
                 this_block = get_block(blocks_clinic(iblock), iblock)
                 n_idx = 0 ! Local linear index within the rAttr array for this block
@@ -832,7 +833,7 @@ contains
                     do i = this_block%ib, this_block%ie
                         n_idx = n_idx + 1
                         current_tracer_forcing_data(i,j,iblock) = &
-                            surface_strdata_inputlist_ptr(forcing_info%strdata_inputlist_ind)%sdat%avs(forcing_info%strdata_var_ind)%rAttr(n_idx)
+                            surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(forcing_info%surface_strdata_var_ind)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
                     enddo
                 enddo
             enddo
@@ -861,7 +862,7 @@ contains
                     ! STF_MODULE represents the NET surface flux into the ocean.
                     STF_MODULE(:,:,n_tracer,iblock) = &
                         STF_MODULE(:,:,n_tracer,iblock) - &
-                        (PV(:,:,iblock) / BETA) * SURF_VALS(:,:,n_tracer,iblock)
+                        (PV / BETA) * SURF_VALS(:,:,n_tracer,iblock)
                 elsewhere
                     STF_MODULE(:,:,n_tracer,iblock) = c0 ! Ensure zero flux over land
                 endwhere

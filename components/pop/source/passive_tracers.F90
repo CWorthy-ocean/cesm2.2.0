@@ -201,6 +201,7 @@
    logical (log_kind) :: filtered_SST_SSS_needed
 
    real (r8), dimension(:,:,:), allocatable :: &
+      SST,           & ! Unfiltered Sea Surface Temperature, [degC]
       SST_FILT,      & ! SST with time filter applied, [degC]
       SSS_FILT         ! SSS with time filter applied, [psu]
 
@@ -1230,8 +1231,7 @@
 !-----------------------------------------------------------------------
 
    if (antitracer_on) then
-      call antitracer_set_sflux(U10_SQR, ICE_FRAC, SST             &
-         TRACER(:,:,1,antitracer_ind_begin:antitracer_ind_end,oldtime,:), &
+      call antitracer_set_sflux(U10_SQR, ICE_FRAC, SST,             &
          TRACER(:,:,1,antitracer_ind_begin:antitracer_ind_end,curtime,:), &
          STF(:,:,antitracer_ind_begin:antitracer_ind_end,:))
    end if

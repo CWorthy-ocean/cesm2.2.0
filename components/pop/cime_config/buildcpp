@@ -167,7 +167,8 @@ def determine_tracer_count(case, caseroot, srcroot, decomp_cppdefs):
     # Determine tracer cppdefs and update pop_cppdefs
     #----------------------------------------------------
 
-    tracer_cppdefs = " -DNT=%d -DMARBL_NT=%d -DIRF_NT=%d -Dantitracer_tracer_cnt=%d" % (config_vars["NT"], config_vars["MARBL_NT"], config_vars["IRF_NT"], config_vars["antitracer_tracer_cnt"])
+    tracer_cppdefs = " -DNT=%d -DMARBL_NT=%d -DIRF_NT=%d " % \
+                     (config_vars["NT"], config_vars["MARBL_NT"], config_vars["IRF_NT"])
 
     other_cppdefs = ""
     if "tx0.1" in case.get_value("OCN_GRID"):
