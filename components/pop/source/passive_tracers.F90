@@ -387,6 +387,9 @@
                               IRF_ind_begin, IRF_ind_end)
    end if
 
+   WRITE(*,*) "POP debugging: Declared NT from CPP is ", nt
+   WRITE(*,*) "POP debugging: Cumulative NT is ", cumulative_nt
+
    if (cumulative_nt /= nt) then
       call document(subname, 'nt', nt)
       call document(subname, 'cumulative_nt', cumulative_nt)
