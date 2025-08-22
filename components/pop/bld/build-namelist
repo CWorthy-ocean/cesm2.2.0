@@ -1387,6 +1387,11 @@ if ($cfc_on eq "TRUE") {
 }
 
 ##########################################
+# namelist group: antitracer_nml         #
+##########################################
+my $antitracer_on = $cfg->get("use_antitracer");
+
+##########################################
 # namelist group: sf6_nml                #
 ##########################################
 
@@ -2307,6 +2312,9 @@ if ($cfc_on eq "TRUE" ) {
 }
 if ($sf6_on eq "TRUE" ) {
     push @groups, qw(sf6_nml);
+}
+if ($antitracer_on eq "TRUE") {
+    push @groups, qw(antitracer_nml);
 }
 if ($ecosys_on eq "TRUE") {
     push @groups, qw(ecosys_driver_nml
