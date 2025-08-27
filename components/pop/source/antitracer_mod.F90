@@ -258,22 +258,6 @@ contains
     init_antitracer_init_file      = 'unknown'
     init_antitracer_init_file_fmt = 'bin'
 
-    if (my_task == master_task) then
-        open (nml_in, file=nml_filename, status='old',iostat=nml_error)
-        if (nml_error /= 0) then
-            nml_error = -1
-        else
-            nml_error =  1
-        endif
-        ! Attempt to read just antitracer_tracer_cnt. This requires it to be at the start
-        ! of the namelist or accessible without errors from other fields.
-        ! A more robust way might be to read the whole namelist into a buffer and parse.
-        ! For simplicity, assuming it's accessible.
-        read(nml_in, nml=antitracer_nml, iostat=nml_error)
-        rewind(nml_in) ! Rewind to read full namelist later, if successful
-        close(nml_in)
-    endif
-
     ! Allocate module-level arrays based on antitracer_tracer_cnt
     allocate(tracer_init_ext(antitracer_tracer_cnt))
     allocate(antitracer_forcing_nml_array(antitracer_tracer_cnt))
