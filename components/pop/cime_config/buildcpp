@@ -40,7 +40,7 @@ _config_cache_template = """<?xml version="1.0"?>
 <entry id="use_irf" value="{use_irf}" list="" valid_values="FALSE,TRUE">Use IRF tracer module</entry>
 <entry id="use_sf6" value="{use_sf6}" list="" valid_values="false,true">use sf6 tracer module</entry>
 <entry id="use_antitracer" value="{use_antitracer}" list="" valid_values="false,true">use antitracer tracer module</entry>
-<entry id="antitracer_tracer_cnt" value="{antitracer_tracer_cnt}" list="" valid_values="">Number of Antitracer tracers</entry>
+<entry id="antitracer_tracer_cnt" value="{ANTITRACER_TRACER_CNT}" list="" valid_values="">Number of Antitracer tracers</entry>
 <entry id="cppdefs" value="{cppdefs}" list="" valid_values="">cppdefs for POP compilation</entry>
 
 </config_definition>
@@ -59,7 +59,7 @@ def determine_tracer_count(case, caseroot, srcroot, decomp_cppdefs):
         'IRF_NT': 0,
         'IRF_MODE': "NK_precond",
         'use_antitracer': "FALSE",
-        'antitracer_tracer_cnt': 0,
+        'ANTITRACER_TRACER_CNT': 0,
         'use_iage': "FALSE",
         'use_cfc': "FALSE",
         'use_sf6': "FALSE",
@@ -156,9 +156,9 @@ def determine_tracer_count(case, caseroot, srcroot, decomp_cppdefs):
             elif module == "antitracer":
                 config_vars['use_antitracer'] = "TRUE"
                 antitracer_cnt_val = case.get_value("ANTITRACER_TRACER_CNT")
-                config_vars['antitracer_tracer_cnt'] = int(antitracer_cnt_val) if antitracer_cnt_val is not None else 0
-                config_vars['NT'] += config_vars['antitracer_tracer_cnt']
-                case.set_value("ANTITRACER_TRACER_CNT", config_vars['antitracer_tracer_cnt'])
+                config_vars['ANTITRACER_TRACER_CNT'] = int(antitracer_cnt_val) if antitracer_cnt_val is not None else 0
+                config_vars['NT'] += config_vars['ANTITRACER_TRACER_CNT']
+                case.set_value("ANTITRACER_TRACER_CNT", config_vars['ANTITRACER_TRACER_CNT'])
             else:
                 expect(False, "module %s is not a valid value in OCN_TRACER_MODULES!" %module)
 
@@ -167,8 +167,8 @@ def determine_tracer_count(case, caseroot, srcroot, decomp_cppdefs):
     # Determine tracer cppdefs and update pop_cppdefs
     #----------------------------------------------------
 
-    tracer_cppdefs = " -DNT=%d -DMARBL_NT=%d -DIRF_NT=%d " % \
-                     (config_vars["NT"], config_vars["MARBL_NT"], config_vars["IRF_NT"])
+    tracer_cppdefs = " -DNT=%d -DMARBL_NT=%d -DIRF_NT=%d -DANTITRACER_TRACER_CNT=%d" % \
+                     (config_vars["NT"], config_vars["MARBL_NT"], config_vars["IRF_NT"], config_vars["ANTITRACER_TRACER_CNT"])
 
     other_cppdefs = ""
     if "tx0.1" in case.get_value("OCN_GRID"):
@@ -281,7 +281,7 @@ def buildcpp(case):
     pop_env_vars_csh_path = os.path.join(popconf_dir, "pop_env_vars.csh")
     with open(pop_env_vars_csh_path, 'w') as f:
         f.write("#!/bin/csh -f\n")
-        f.write(f"setenv ANTITRACER_TRACER_CNT {all_config_vars['antitracer_tracer_cnt']}\n")
+        f.write(f"setenv ANTITRACER_TRACER_CNT {all_config_vars['ANTITRACER_TRACER_CNT']}\n")
 
     config_cache_text = _config_cache_template.format(**all_config_vars)
     config_cache_path = os.path.join(popconf_dir, "config_cache.xml")

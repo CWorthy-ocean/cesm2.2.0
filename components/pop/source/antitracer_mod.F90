@@ -77,8 +77,7 @@ module antitracer_mod
 ! module variables required by passive_tracers
 !-----------------------------------------------------------------------
 
-    ! antitracer_tracer_cnt is no longer a parameter, but set by namelist
-    integer (int_kind) :: antitracer_tracer_cnt
+    integer(int_kind), parameter :: antitracer_tracer_cnt = ANTITRACER_TRACER_CNT
 
 !-----------------------------------------------------------------------
 ! relative tracer indices
@@ -243,7 +242,6 @@ contains
     type(antitracer_forcing_nml_type), dimension(:), allocatable :: antitracer_forcing_nml_array
 
     namelist /antitracer_nml/ &
-      antitracer_tracer_cnt, & ! Now read from namelist
       init_antitracer_option, init_antitracer_init_file, init_antitracer_init_file_fmt, &
       tracer_init_ext, &
       antitracer_forcing_nml_array ! New namelist array for individual tracer forcing
@@ -256,14 +254,10 @@ contains
 !   these are only defaults on master, will be read/broadcast
 !-----------------------------------------------------------------------
 
-    antitracer_tracer_cnt = 1 ! Default value if not specified in namelist
-
     init_antitracer_option      = 'unknown'
     init_antitracer_init_file      = 'unknown'
     init_antitracer_init_file_fmt = 'bin'
 
-    ! Initial read of namelist to get antitracer_tracer_cnt first.
-    ! This is a common pattern to dynamically size arrays based on namelist input.
     if (my_task == master_task) then
         open (nml_in, file=nml_filename, status='old',iostat=nml_error)
         if (nml_error /= 0) then
@@ -278,12 +272,6 @@ contains
         read(nml_in, nml=antitracer_nml, iostat=nml_error)
         rewind(nml_in) ! Rewind to read full namelist later, if successful
         close(nml_in)
-    endif
-    call broadcast_scalar(antitracer_tracer_cnt, master_task)
-
-    if (antitracer_tracer_cnt <= 0) then
-        call document(subname, 'antitracer_tracer_cnt must be > 0, found', antitracer_tracer_cnt)
-        call exit_POP(sigAbort, 'Invalid antitracer_tracer_cnt in ' // subname)
     endif
 
     ! Allocate module-level arrays based on antitracer_tracer_cnt
