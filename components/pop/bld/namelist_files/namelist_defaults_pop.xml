@@ -1281,8 +1281,6 @@
 <!--        antitracer_nml         -->
 <!---------------------------->
 
-<antitracer_tracer_cnt>1</antitracer_tracer_cnt>
-
 <init_antitracer_option>zero</init_antitracer_option>
 <init_antitracer_init_file>same_as_TS</init_antitracer_init_file>
 <init_antitracer_init_file_fmt>bin</init_antitracer_init_file_fmt>

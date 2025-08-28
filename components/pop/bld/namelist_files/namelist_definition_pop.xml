@@ -5718,15 +5718,6 @@ Default:
 <!-- - - - - - - - - - - - - - - - - - -->
 
 <entry
-id="antitracer_tracer_cnt"
-type="integer"
-category="Passive Tracers (Antitracer)"
-group="antitracer_nml" >
-Number of independent antitracer modules to enable.
-Default: 1
-</entry>
-
-<entry
 id="init_antitracer_option"
 type="char*256"
 category="Passive Tracers (Antitracer)"
