@@ -253,35 +253,10 @@ contains
 ! default namelist settings - for antitracer_tracer_cnt and forcing_nml_array
 !   these are only defaults on master, will be read/broadcast
 !-----------------------------------------------------------------------
-    write(stdout,*) '+++ DEBUG: Entering antitracer_init on task ', my_task
-
     init_antitracer_option      = 'unknown'
     init_antitracer_init_file      = 'unknown'
     init_antitracer_init_file_fmt = 'bin'
-
-    write(stdout,*) '+++ DEBUG: Entering antitracer_nml read on task ', my_task
-    if (my_task == master_task) then
-       open (nml_in, file=nml_filename, status='old', iostat=nml_error)
-       if (nml_error /= 0) then
-         nml_error = -1
-       else
-         nml_error =  1
-       endif
-       !*** keep reading until find right namelist
-       do while (nml_error > 0)
-         read(nml_in, nml=antitracer_nml,iostat=nml_error)
-       end do
-       if (nml_error == 0) close(nml_in)
-    end if
-
-    call broadcast_scalar(nml_error, master_task)
-    if (nml_error /= 0) then
-       call exit_POP(sigAbort,'ERROR reading antitracer namelist')
-    endif
-
-    write(stdout,*) '+++ DEBUG: antitracer_tracer_cnt on task ', my_task, ' is ', antitracer_tracer_cnt
-    write(stdout,*) '+++ DEBUG: init_antitracer_option on task ', my_task, ' is ', init_antitracer_option
-
+    
     ! Allocate module-level arrays based on antitracer_tracer_cnt
     allocate(tracer_init_ext(antitracer_tracer_cnt))
     allocate(antitracer_forcing_nml_array(antitracer_tracer_cnt))
@@ -309,6 +284,26 @@ contains
       antitracer_forcing_nml_array(n)%scale_factor = 1.0e4_r8 ! convert from 1/m^2/s to 1/cm^2/s
 
     end do
+
+    if (my_task == master_task) then
+       open (nml_in, file=nml_filename, status='old', iostat=nml_error)
+       if (nml_error /= 0) then
+         nml_error = -1
+       else
+         nml_error =  1
+       endif
+       !*** keep reading until find right namelist
+       do while (nml_error > 0)
+         read(nml_in, nml=antitracer_nml,iostat=nml_error)
+       end do
+       if (nml_error == 0) close(nml_in)
+    end if
+
+    call broadcast_scalar(nml_error, master_task)
+    if (nml_error /= 0) then
+       call exit_POP(sigAbort,'ERROR reading antitracer namelist')
+    endif
+
 
 !-----------------------------------------------------------------------
 ! broadcast all namelist variables (including the newly allocated arrays)
@@ -585,8 +580,6 @@ contains
 ! Loop through each antitracer and set up its forcing data source.
 ! This will create/append to surface_strdata_inputlist_ptr.
 !-----------------------------------------------------------------------
-    write(stdout,*) '+++ DEBUG: Entering antitracer_init_sflux on task ', my_task
-
     ! Initialize surface_strdata_inputlist_ptr if not already done.
     ! It should be allocated to size 0 initially, then grow as needed.
     if (.not. associated(surface_strdata_inputlist_ptr)) then
@@ -596,9 +589,6 @@ contains
     do n_tracer = 1, antitracer_tracer_cnt
         ! Get info for the current antitracer from the module-level array
         associate(forcing_info => all_antitracer_forcing_info(n_tracer))
-            write(stdout,*) '+++ DEBUG: Setting up file for antitracer ', n_tracer
-            write(stdout,*) '+++ DEBUG: Filename is ', all_antitracer_forcing_info(n_tracer)%filename
-            write(stdout,*) '+++ DEBUG: Varname is ', all_antitracer_forcing_info(n_tracer)%file_varname
 
             ! Set up a temporary strdata_input_type for the current antitracer forcing.
             ! This defines the file, variable, and time parameters for shr_strdata.
