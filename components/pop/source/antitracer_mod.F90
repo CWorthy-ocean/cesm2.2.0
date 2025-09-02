@@ -122,6 +122,7 @@ module antitracer_mod
 !-----------------------------------------------------------------------
 
     type (strdata_input_type), pointer :: surface_strdata_inputlist_ptr(:)
+    logical(log_kind), save :: antitracer_io_initialized = .false.
 
 !-----------------------------------------------------------------------
 ! define tavg id for 2d fields related to surface fluxes
@@ -477,7 +478,7 @@ contains
 !-----------------------------------------------------------------------
 
     call antitracer_init_tavg
-    call antitracer_init_sflux() ! No arguments needed now, uses all_antitracer_forcing_info
+    call antitracer_init_sflux
 
 !-----------------------------------------------------------------------
 !EOC
@@ -538,6 +539,8 @@ contains
 
     allocate(ANTITRACER_SFLUX_TAVG(nx_block,ny_block,var_cnt,max_blocks_clinic))
     ANTITRACER_SFLUX_TAVG = c0
+           
+    write(stdout,*) ' Done with antitracer_init_tavg'
 
 !-----------------------------------------------------------------------
 !EOC
@@ -563,6 +566,9 @@ contains
     use strdata_interface_mod, only : POP_strdata_type_append_field
     use strdata_interface_mod, only : POP_strdata_type_cp
     use strdata_interface_mod, only : POP_strdata_type_field_count
+    ! Add these for the debug statements
+    use communicate, only : my_task, master_task
+    use io_types,    only : stdout
 
 !EOP
 !BOC
@@ -580,18 +586,34 @@ contains
 ! Loop through each antitracer and set up its forcing data source.
 ! This will create/append to surface_strdata_inputlist_ptr.
 !-----------------------------------------------------------------------
+    if (my_task == master_task) then
+        write(stdout,'(A)') '==> DEBUG: Entering antitracer_init_sflux'
+    end if
+
     ! Initialize surface_strdata_inputlist_ptr if not already done.
     ! It should be allocated to size 0 initially, then grow as needed.
     if (.not. associated(surface_strdata_inputlist_ptr)) then
+        if (my_task == master_task) write(stdout,'(A)') '... DEBUG: Allocating surface_strdata_inputlist_ptr to size 0'
         allocate(surface_strdata_inputlist_ptr(0))
     end if
 
     do n_tracer = 1, antitracer_tracer_cnt
+        if (my_task == master_task) then
+            write(stdout,'(A,I0,A)') '---------------------------------------------------'
+            write(stdout,'(A,I0)') '... DEBUG: Processing tracer #', n_tracer
+        end if
         ! Get info for the current antitracer from the module-level array
         associate(forcing_info => all_antitracer_forcing_info(n_tracer))
+            if (my_task == master_task) then
+                write(stdout,'(A,A)')   '... DEBUG: Forcing Filename = ', trim(forcing_info%filename)
+                write(stdout,'(A,A)')   '... DEBUG: Forcing Varname  = ', trim(forcing_info%file_varname)
+                write(stdout,'(A,I0)')  '... DEBUG: Forcing Year First= ', forcing_info%year_first
+                write(stdout,'(A,I0)')  '... DEBUG: Forcing Year Last = ', forcing_info%year_last
+            end if
 
             ! Set up a temporary strdata_input_type for the current antitracer forcing.
             ! This defines the file, variable, and time parameters for shr_strdata.
+
             call POP_strdata_type_set(surface_strdata_input_var, &
                                       file_name = forcing_info%filename,      &
                                       field = forcing_info%file_varname,      &
@@ -599,27 +621,32 @@ contains
                                       year_first = forcing_info%year_first,   &
                                       year_last = forcing_info%year_last,     &
                                       year_align = forcing_info%year_align,   &
-                                      depth_flag = .false.,      & ! Forcing is 2D surface flux
-                                      tintalgo = 'linear',       &
-                                      taxMode = 'cycle')         ! Cycle or extend time series
+                                      depth_flag = .false.,     & ! Forcing is 2D surface flux
+                                      tintalgo = 'linear',      &
+                                      taxMode = 'cycle')        ! Cycle or extend time series
 
             n_strdata_entries = size(surface_strdata_inputlist_ptr)
+            if (my_task == master_task) write(stdout,'(A,I0)') '... DEBUG: Current number of unique strdata entries = ', n_strdata_entries
             forcing_info%surface_strdata_inputlist_ind = 0 ! Initialize to 'not found' state
 
             ! Check if a matching strdata entry (same file, same years, etc.) already exists
             ! in the global `surface_strdata_inputlist_ptr` array.
             do m = 1, n_strdata_entries
+                if (my_task == master_task) write(stdout,'(A,I0)') '... DEBUG:   Checking for match with existing entry #', m
                 if (POP_strdata_type_match(surface_strdata_input_var, surface_strdata_inputlist_ptr(m))) then
                     ! If a match is found, append the current tracer's variable name to the existing entry's field list.
+                    if (my_task == master_task) write(stdout,'(A,I0,A)') '... DEBUG:   MATCH FOUND with entry #', m, '. Appending field.'
                     call POP_strdata_type_append_field(forcing_info%file_varname, surface_strdata_inputlist_ptr(m))
                     forcing_info%surface_strdata_inputlist_ind = m ! Store the index of this shared entry
                     exit ! Found a match, stop searching for this tracer
-                endif
+                end if
             end do
 
             ! If no match was found, create a new entry in `surface_strdata_inputlist_ptr`.
             if (forcing_info%surface_strdata_inputlist_ind == 0) then
+                if (my_task == master_task) write(stdout,'(A)') '... DEBUG:   NO match found. Creating a new strdata entry.'
                 n_strdata_entries = n_strdata_entries + 1
+                if (my_task == master_task) write(stdout,'(A,I0)') '... DEBUG:   New total entries will be = ', n_strdata_entries
                 ! Reallocate the pointer array to accommodate the new entry
                 allocate(surface_strdata_inputlist_tmp_ptr(n_strdata_entries))
                 ! Copy existing entries to the new larger array
@@ -639,23 +666,24 @@ contains
             forcing_info%surface_strdata_var_ind = POP_strdata_type_field_count( &
                 surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind))
 
+            if (my_task == master_task) then
+                write(stdout,'(A,I0)') '... DEBUG: This tracer will use strdata entry index: ', forcing_info%surface_strdata_inputlist_ind
+                write(stdout,'(A,I0)') '... DEBUG: Its variable index within that entry is: ', forcing_info%surface_strdata_var_ind
+            end if
+
         end associate ! forcing_info
     end do ! n_tracer
 
-    ! After all tracers' forcing information has been configured and allocated
-    ! within `surface_strdata_inputlist_ptr`, create the actual `shr_strdata` objects.
-    ! This loop calls `POP_strdata_create` for each *unique* `strdata_input_type` entry.
-    ! This is critical for supporting multiple tracers from potentially different
-    ! files or reading multiple variables from the same file efficiently.
-    do m = 1, size(surface_strdata_inputlist_ptr)
-        call POP_strdata_create(surface_strdata_inputlist_ptr(m))
-    end do
-
+    if (my_task == master_task) then
+        write(stdout,'(A,I0,A)') '---------------------------------------------------'
+        write(stdout,'(A,I0,A)') '... DEBUG: Finished processing all tracers. Final number of unique strdata entries is ', &
+                                 size(surface_strdata_inputlist_ptr), '.'
+    end if
 
 !-----------------------------------------------------------------------
 !EOC
 
-  end subroutine antitracer_init_sflux
+end subroutine antitracer_init_sflux
 
 !***********************************************************************
 !BOP
@@ -731,6 +759,29 @@ contains
 !-----------------------------------------------------------------------
 
     call timer_start(antitracer_sflux_timer)
+
+    !-----------------------------------------------------------------------
+    ! Create the shr_strdata stream objects on the first timestep.
+    ! This must be done here rather than in the init sequence to ensure all
+    ! parallel components (PIO, MCT maps) are fully initialized.
+    !-----------------------------------------------------------------------
+
+    if (.not. antitracer_io_initialized) then
+
+      do m = 1, size(surface_strdata_inputlist_ptr)
+          if (my_task == master_task) then
+              write(stdout,'(A,I0,A,A)') '... DEBUG: Calling POP_strdata_create for entry #', m, ' (File: ', &
+                                        trim(surface_strdata_inputlist_ptr(m)%file_name), ')'
+          end if
+          call POP_strdata_create(surface_strdata_inputlist_ptr(m))
+      end do
+      antitracer_io_initialized = .true.
+    endif
+
+    if (my_task == master_task) then
+        write(stdout,'(A,I0,A)') '---------------------------------------------------'
+        write(stdout,'(A)') '==> DEBUG: Exiting antitracer_init_sflux'
+    end if
 
 !-----------------------------------------------------------------------
 ! Advance all unique shr_strdata streams.
@@ -870,6 +921,13 @@ contains
 ! !REVISION HISTORY:
 ! same as module
 
+! !USES:
+    ! Add these for the NaN check and a clean exit
+    use shr_infnan_mod, only : shr_infnan_isnan
+    use exit_mod,       only : exit_POP, sigAbort
+    use communicate,    only : my_task, master_task
+    use io_types,       only : stdout
+
 ! !INPUT PARAMETERS:
 
     logical (log_kind), intent(in)  :: LAND_MASK(nx_block,ny_block)    ! land mask for this block
@@ -894,7 +952,6 @@ contains
     real (r8), parameter :: e =    0.000000697_r8
 
 !-----------------------------------------------------------------------
-
     do j = 1, ny_block
       do i = 1, nx_block
           if (LAND_MASK(i,j)) then
