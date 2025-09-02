@@ -709,19 +709,19 @@ end subroutine antitracer_init_sflux
 
 ! !INPUT PARAMETERS:
 
-    real (r8), dimension(nx_block,ny_block,max_blocks_clinic), intent(in) :: &
+    real (r8), dimension(nx_block,ny_block,:), intent(in) :: &
       U10_SQR,    & ! 10m wind speed squared (cm/s)**2
       IFRAC,      & ! sea ice fraction (non-dimensional)
       SST           ! sea surface temperature (C)
 
     ! SURF_VALS contains the current concentration of all antitracers at the surface.
-    real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,max_blocks_clinic), &
-              intent(in) :: SURF_VALS ! module tracers
+    real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,:), &
+              intent(in) :: SURF_VALS
 
 ! !OUTPUT PARAMETERS:
 
     ! STF_MODULE will store the computed surface flux for all antitracers.
-    real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,max_blocks_clinic), &
+    real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,:), &
               intent(inout) :: STF_MODULE
 
 !EOP
