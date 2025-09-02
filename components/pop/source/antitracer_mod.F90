@@ -709,20 +709,17 @@ end subroutine antitracer_init_sflux
 
 ! !INPUT PARAMETERS:
 
-    real (r8), dimension(nx_block,ny_block,:), intent(in) :: &
-      U10_SQR,    & ! 10m wind speed squared (cm/s)**2
-      IFRAC,      & ! sea ice fraction (non-dimensional)
-      SST           ! sea surface temperature (C)
+    real (r8), dimension(nx_block,ny_block,:), intent(in) :: U10_SQR ! 10m wind speed squared (cm/s)**2
+    real (r8), dimension(nx_block,ny_block,:), intent(in) :: IFRAC   ! sea ice fraction (non-dimensional)
+    real (r8), dimension(nx_block,ny_block,:), intent(in) :: SST     ! sea surface temperature (C)
 
     ! SURF_VALS contains the current concentration of all antitracers at the surface.
-    real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,:), &
-              intent(in) :: SURF_VALS
+    real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,:), intent(in) :: SURF_VALS
 
 ! !OUTPUT PARAMETERS:
 
     ! STF_MODULE will store the computed surface flux for all antitracers.
-    real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,:), &
-              intent(inout) :: STF_MODULE
+    real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,:), intent(inout) :: STF_MODULE
 
 !EOP
 !BOC
@@ -824,6 +821,11 @@ end subroutine antitracer_init_sflux
           XKW_ICE(:,:) = c0
           PV(:,:) = c0
       endwhere
+      ! Store these computed common fields for later use in tavg
+      ANTITRACER_SFLUX_TAVG(:,:,1,iblock) = IFRAC_USED(:,:,iblock)
+      ANTITRACER_SFLUX_TAVG(:,:,2,iblock) = XKW_USED(:,:,iblock)
+      ANTITRACER_SFLUX_TAVG(:,:,3,iblock) = ANTITRACER_SCHMIDT(:,:)
+      ANTITRACER_SFLUX_TAVG(:,:,4,iblock) = PV(:,:)
     end do
 
     ! Accumulate tavg fields related to general surface fluxes.
@@ -954,12 +956,16 @@ end subroutine antitracer_init_sflux
 !-----------------------------------------------------------------------
     do j = 1, ny_block
       do i = 1, nx_block
-          if (LAND_MASK(i,j)) then
-             SST(i,j) = max(-2.0_r8, min(40.0_r8, SST_IN(i,j)))
-             ANTITRACER_SCHMIDT(i,j) = a + SST(i,j) * (b + SST(i,j) * (c + SST(i,j) * (d + SST(i,j) * e)))
-          else
-             ANTITRACER_SCHMIDT(i,j) = c0
-          endif
+        if (shr_infnan_isnan(SST_IN(i,j))) then
+           if (my_task == master_task) write(stdout,*) 'NaN in SST_IN in comp_antitracer_schmidt'
+           call exit_POP(sigAbort, 'NaN in comp_antitracer_schmidt')
+        endif
+        if (LAND_MASK(i,j)) then
+            SST(i,j) = max(-2.0_r8, min(40.0_r8, SST_IN(i,j)))
+            ANTITRACER_SCHMIDT(i,j) = a + SST(i,j) * (b + SST(i,j) * (c + SST(i,j) * (d + SST(i,j) * e)))
+        else
+            ANTITRACER_SCHMIDT(i,j) = c0
+        endif
       end do
     end do
 
