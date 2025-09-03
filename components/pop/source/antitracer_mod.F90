@@ -698,27 +698,21 @@ end subroutine antitracer_init_sflux
 ! subsequent accumulating. This routine iterates over all defined
 ! antitracers, reads their forcing data, and computes air-sea gas exchange.
 
-! !REVISION HISTORY:
-! same as module
-
 ! !USES:
 
-    use constants, only: xkw_coeff !, p5
-    use timers, only: timer_start, timer_stop
-    use domain,                 only : blocks_clinic
+    use constants, only: xkw_coeff
+    use timers,    only: timer_start, timer_stop
+    use domain,    only: blocks_clinic
 
 ! !INPUT PARAMETERS:
 
-    real (r8), dimension(nx_block,ny_block,:), intent(in) :: U10_SQR ! 10m wind speed squared (cm/s)**2
-    real (r8), dimension(nx_block,ny_block,:), intent(in) :: IFRAC   ! sea ice fraction (non-dimensional)
-    real (r8), dimension(nx_block,ny_block,:), intent(in) :: SST     ! sea surface temperature (C)
-
-    ! SURF_VALS contains the current concentration of all antitracers at the surface.
+    real (r8), dimension(nx_block,ny_block,:), intent(in) :: U10_SQR   ! 10m wind speed squared (cm/s)**2
+    real (r8), dimension(nx_block,ny_block,:), intent(in) :: IFRAC     ! sea ice fraction (non-dimensional)
+    real (r8), dimension(nx_block,ny_block,:), intent(in) :: SST       ! sea surface temperature (C)
     real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,:), intent(in) :: SURF_VALS
 
 ! !OUTPUT PARAMETERS:
 
-    ! STF_MODULE will store the computed surface flux for all antitracers.
     real (r8), dimension(nx_block,ny_block,antitracer_tracer_cnt,:), intent(inout) :: STF_MODULE
 
 !EOP
@@ -727,65 +721,30 @@ end subroutine antitracer_init_sflux
 ! local variables
 !-----------------------------------------------------------------------
     character(*), parameter :: subname = 'antitracer_mod:antitracer_set_sflux'
-
-    integer (int_kind) :: &
-      iblock, n_tracer, m ! block and tracer indices
-
-    ! These variables are computed per-block and are common for all antitracers
-    ! for gas exchange calculations.
-    real (r8), dimension(nx_block,ny_block,max_blocks_clinic) :: &
-      IFRAC_USED,      & ! used ice fraction (non-dimensional)
-      XKW_USED           ! part of piston velocity (cm/s)
+    integer (int_kind)       :: iblock, n_tracer, m, i, j, n_idx
+    integer(POP_i4)          :: errorCode
+    type(block)              :: this_block
+    logical(log_kind), save   :: first_call_this_timestep = .true.
 
     real (r8), dimension(nx_block,ny_block) :: &
-      ANTITRACER_SCHMIDT,    & ! ANTITRACER Schmidt number
-      XKW_ICE,          & ! common portion of piston vel., (1-fice)*xkw (cm/s)
-      PV                   ! piston velocity (cm/s)
+      IFRAC_USED, XKW_USED, ANTITRACER_SCHMIDT, XKW_ICE, PV
 
-    type(block)           :: this_block ! block info for the current block
-    integer(int_kind)     :: i, j       ! loop indices for spatial iteration
-    integer(int_kind)     :: n_idx      ! local linear index for rAttr array access
-    integer(POP_i4)       :: errorCode ! error code for POP_HaloUpdate
-
-    ! Temporary array to hold the forcing data from shr_strdata for a single tracer
-    real(r8), dimension(nx_block,ny_block,max_blocks_clinic) :: current_tracer_forcing_data
-
-    ! Static flag for first call within a timestep to prevent redundant `strdata_advance` calls.
-    logical(log_kind), save :: first_call_this_timestep = .true.
+    ! Temporary array to hold forcing data for one tracer at a time
+    real(r8), dimension(nx_block,ny_block,max_blocks_clinic) :: forcing_data_all_tracers
 
 !-----------------------------------------------------------------------
 
     call timer_start(antitracer_sflux_timer)
 
-    !-----------------------------------------------------------------------
-    ! Create the shr_strdata stream objects on the first timestep.
-    ! This must be done here rather than in the init sequence to ensure all
-    ! parallel components (PIO, MCT maps) are fully initialized.
-    !-----------------------------------------------------------------------
-
+    ! Create shr_strdata objects on the first call
     if (.not. antitracer_io_initialized) then
-
       do m = 1, size(surface_strdata_inputlist_ptr)
-          if (my_task == master_task) then
-              write(stdout,'(A,I0,A,A)') '... DEBUG: Calling POP_strdata_create for entry #', m, ' (File: ', &
-                                        trim(surface_strdata_inputlist_ptr(m)%file_name), ')'
-          end if
           call POP_strdata_create(surface_strdata_inputlist_ptr(m))
       end do
       antitracer_io_initialized = .true.
     endif
 
-    if (my_task == master_task) then
-        write(stdout,'(A,I0,A)') '---------------------------------------------------'
-        write(stdout,'(A)') '==> DEBUG: Exiting antitracer_init_sflux'
-    end if
-
-!-----------------------------------------------------------------------
-! Advance all unique shr_strdata streams.
-! This is done only once per model timestep to ensure data is updated.
-! `surface_strdata_inputlist_ptr` contains all unique shr_strdata objects.
-!-----------------------------------------------------------------------
-
+    ! Advance all unique shr_strdata streams once per timestep
     if (first_call_this_timestep) then
         do m = 1, size(surface_strdata_inputlist_ptr)
             call POP_strdata_advance(surface_strdata_inputlist_ptr(m))
@@ -793,107 +752,72 @@ end subroutine antitracer_init_sflux
         first_call_this_timestep = .false.
     end if
 
-!-----------------------------------------------------------------------
-! Pre-compute common gas exchange parameters (not tracer-dependent)
-! These only need to be computed once per timestep, per block.
-! Moved calculation outside the `n_tracer` loop for efficiency.
-!-----------------------------------------------------------------------
-
-    do iblock = 1, nblocks_clinic
-      where (LAND_MASK(:,:,iblock))
-          IFRAC_USED(:,:,iblock) = IFRAC(:,:,iblock)
-          XKW_USED(:,:,iblock) = xkw_coeff * U10_SQR(:,:,iblock)
-      endwhere
-      ! Clamp IFRAC_USED to valid range [0, 1]
-      where (LAND_MASK(:,:,iblock) .and. IFRAC_USED(:,:,iblock) < c0) &
-          IFRAC_USED(:,:,iblock) = c0
-      where (LAND_MASK(:,:,iblock) .and. IFRAC_USED(:,:,iblock) > c1) &
-          IFRAC_USED(:,:,iblock) = c1
-
-      call comp_antitracer_schmidt(LAND_MASK(:,:,iblock), SST(:,:,iblock), &
-                                    ANTITRACER_SCHMIDT)
-
-      ! Calculate XKW_ICE and PV based on common parameters
-      where (LAND_MASK(:,:,iblock))
-          XKW_ICE = (c1 - IFRAC_USED(:,:,iblock)) * XKW_USED(:,:,iblock)
-          PV = XKW_ICE * sqrt(660.0_r8 / ANTITRACER_SCHMIDT)
-      elsewhere
-          XKW_ICE(:,:) = c0
-          PV(:,:) = c0
-      endwhere
-      ! Store these computed common fields for later use in tavg
-      ANTITRACER_SFLUX_TAVG(:,:,1,iblock) = IFRAC_USED(:,:,iblock)
-      ANTITRACER_SFLUX_TAVG(:,:,2,iblock) = XKW_USED(:,:,iblock)
-      ANTITRACER_SFLUX_TAVG(:,:,3,iblock) = ANTITRACER_SCHMIDT(:,:)
-      ANTITRACER_SFLUX_TAVG(:,:,4,iblock) = PV(:,:)
+    ! Get forcing data for ALL tracers first
+    do n_tracer = 1, antitracer_tracer_cnt
+      associate(forcing_info => all_antitracer_forcing_info(n_tracer))
+        do iblock = 1, nblocks_clinic
+          this_block = get_block(blocks_clinic(iblock), iblock)
+          n_idx = 0
+          do j = this_block%jb, this_block%je
+            do i = this_block%ib, this_block%ie
+              n_idx = n_idx + 1
+              ! FIX: Correct access to rAttr (it's a 1D array)
+              forcing_data_all_tracers(i,j,iblock) = &
+                   surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(forcing_info%surface_strdata_var_ind)%rAttr(n_idx)
+            enddo
+          enddo
+        enddo
+      end associate
     end do
 
-    ! Accumulate tavg fields related to general surface fluxes.
-    ! These are accumulated once per timestep, using the common calculated values.
-    ! They don't need to be inside the n_tracer loop.
-    ! Note: A dedicated call `antitracer_tavg_forcing` handles this after all fluxes are set.
-    ! However, if these were supposed to be accumulated here, it would be:
-    ! do iblock = 1, nblocks_clinic
-    !     call accumulate_tavg_field(IFRAC_USED(:,:,iblock),tavg_ANTITRACER_IFRAC,iblock,1)
-    !     call accumulate_tavg_field(XKW_USED(:,:,iblock),tavg_ANTITRACER_XKW,iblock,1)
-    !     call accumulate_tavg_field(ANTITRACER_SCHMIDT,tavg_ANTITRACER_SCHMIDT,iblock,1) ! Schmidt is 2D
-    !     call accumulate_tavg_field(PV(:,:,iblock),tavg_ANTITRACER_PV,iblock,1)
-    ! end do
-    ! But since `antitracer_tavg_forcing` exists, we'll let it handle the module-level ANTITRACER_SFLUX_TAVG.
+    ! Apply halo update to the forcing data
+    call POP_HaloUpdate(forcing_data_all_tracers, POP_haloClinic, &
+                        POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 0.0_r8)
+    if (errorCode /= POP_Success) then
+        call document(subname, 'error updating halo for antitracer forcing field')
+        call exit_POP(sigAbort, 'Stopping in ' // subname)
+    endif
 
-!-----------------------------------------------------------------------
-! Loop over each antitracer to compute its specific surface flux
-!-----------------------------------------------------------------------
+    ! CORRECTED LOOP STRUCTURE: Loop over blocks, then tracers
+    do iblock = 1, nblocks_clinic
+        ! Pre-compute common gas exchange parameters for this block
+        where (LAND_MASK(:,:,iblock))
+            IFRAC_USED = IFRAC(:,:,iblock)
+            XKW_USED   = xkw_coeff * U10_SQR(:,:,iblock)
+        elsewhere
+            IFRAC_USED = c0
+            XKW_USED   = c0
+        endwhere
+        where (LAND_MASK(:,:,iblock) .and. IFRAC_USED < c0) IFRAC_USED = c0
+        where (LAND_MASK(:,:,iblock) .and. IFRAC_USED > c1) IFRAC_USED = c1
 
-    !$OMP PARALLEL DO PRIVATE(n_tracer, iblock, this_block, i, j, n_idx, errorCode)
-    do n_tracer = 1, antitracer_tracer_cnt
-        associate(forcing_info => all_antitracer_forcing_info(n_tracer))
+        call comp_antitracer_schmidt(LAND_MASK(:,:,iblock), SST(:,:,iblock), ANTITRACER_SCHMIDT)
 
-            do iblock = 1, nblocks_clinic
-                this_block = get_block(blocks_clinic(iblock), iblock)
-                n_idx = 0 ! Local linear index within the rAttr array for this block
-                do j = this_block%jb, this_block%je
-                    do i = this_block%ib, this_block%ie
-                        n_idx = n_idx + 1
-                        current_tracer_forcing_data(i,j,iblock) = &
-                            surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(forcing_info%surface_strdata_var_ind)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
-                    enddo
-                enddo
-            enddo
+        where (LAND_MASK(:,:,iblock))
+            XKW_ICE = (c1 - IFRAC_USED) * XKW_USED
+            PV      = XKW_ICE * sqrt(660.0_r8 / ANTITRACER_SCHMIDT)
+        elsewhere
+            XKW_ICE = c0
+            PV      = c0
+        endwhere
 
-            ! Apply halo update for this tracer's forcing field
-            call POP_HaloUpdate(current_tracer_forcing_data, POP_haloClinic, &
-                                POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 0.0_r8)
-            if (errorCode /= POP_Success) then
-                call document(subname, 'error updating halo for antitracer forcing field for '//trim(forcing_info%name))
-                call exit_POP(sigAbort, 'Stopping in ' // subname)
-            endif
+        ANTITRACER_SFLUX_TAVG(:,:,1,iblock) = IFRAC_USED(:,:)
+        ANTITRACER_SFLUX_TAVG(:,:,2,iblock) = XKW_USED(:,:)
+        ANTITRACER_SFLUX_TAVG(:,:,3,iblock) = ANTITRACER_SCHMIDT(:,:)
+        ANTITRACER_SFLUX_TAVG(:,:,4,iblock) = PV(:,:)
 
-            ! Initialize/Set STF_MODULE for this tracer with its forcing term
-            do iblock = 1, nblocks_clinic
+        ! Now loop over tracers and compute the final flux using this block's PV
+        do n_tracer = 1, antitracer_tracer_cnt
+            associate(forcing_info => all_antitracer_forcing_info(n_tracer))
                 where (LAND_MASK(:,:,iblock))
-                    STF_MODULE(:,:,n_tracer,iblock) = forcing_info%scale_factor * current_tracer_forcing_data(:,:,iblock)
+                    STF_MODULE(:,:,n_tracer,iblock) = forcing_info%scale_factor * forcing_data_all_tracers(:,:,iblock) - &
+                                                      (PV / BETA) * SURF_VALS(:,:,n_tracer,iblock)
                 elsewhere
-                    STF_MODULE(:,:,n_tracer,iblock) = c0 ! No forcing over land
+                    STF_MODULE(:,:,n_tracer,iblock) = c0
                 endwhere
-            enddo
-
-            ! Apply air-sea gas exchange term (loss to atmosphere) for this tracer
-            do iblock = 1, nblocks_clinic
-                where (LAND_MASK(:,:,iblock))
-                    ! This subtracts the loss due to gas exchange from the initial forcing.
-                    ! STF_MODULE represents the NET surface flux into the ocean.
-                    STF_MODULE(:,:,n_tracer,iblock) = &
-                        STF_MODULE(:,:,n_tracer,iblock) - &
-                        (PV / BETA) * SURF_VALS(:,:,n_tracer,iblock)
-                elsewhere
-                    STF_MODULE(:,:,n_tracer,iblock) = c0 ! Ensure zero flux over land
-                endwhere
-            end do ! iblock for gas exchange
-
-        end associate ! forcing_info
-    end do ! n_tracer
-    !$OMP END PARALLEL DO
+            end associate
+        end do
+    end do
 
     call timer_stop(antitracer_sflux_timer)
 
@@ -901,7 +825,6 @@ end subroutine antitracer_init_sflux
 !EOC
 
   end subroutine antitracer_set_sflux
-
 !***********************************************************************
 !BOP
 ! !IROUTINE: comp_antitracer_schmidt
