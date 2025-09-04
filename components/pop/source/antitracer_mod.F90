@@ -571,9 +571,6 @@ contains
         where (LAND_MASK(:,:,iblock) .and. IFRAC_USED < c0) IFRAC_USED = c0
         where (LAND_MASK(:,:,iblock) .and. IFRAC_USED > c1) IFRAC_USED = c1
 
-        write(stdout,'(A,I0,A,I0)') 'DEBUG: Task=', my_task, ', processing iblock=', iblock
-        call flush(stdout)
-
         call comp_antitracer_schmidt(LAND_MASK(:,:,iblock), SST(:,:,iblock), ANTITRACER_SCHMIDT)
 
         where (LAND_MASK(:,:,iblock))
