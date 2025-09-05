@@ -74,6 +74,8 @@ module antitracer_mod
 !EOP
 !BOC
 
+    integer (int_kind), dimension(:), allocatable :: tavg_ANTITRACER_FORCING
+
 !-----------------------------------------------------------------------
 ! module variables required by passive_tracers
 !-----------------------------------------------------------------------
@@ -368,7 +370,8 @@ contains
 !EOP
 !BOC
 !-----------------------------------------------------------------------
-    integer (int_kind) :: var_cnt
+    integer (int_kind) :: var_cnt, n
+    character(char_len) :: sname, lname, units, coordinates
 !-----------------------------------------------------------------------
 
     var_cnt = 0
@@ -394,6 +397,16 @@ contains
 
     allocate(ANTITRACER_SFLUX_TAVG(nx_block,ny_block,var_cnt,max_blocks_clinic))
     ANTITRACER_SFLUX_TAVG = c0
+
+    allocate(tavg_ANTITRACER_FORCING(antitracer_tracer_cnt))
+    do n = 1, antitracer_tracer_cnt
+        sname = trim(ind_name_table(n)%name) // '_FORCING'
+        lname = 'Forcing for ' // trim(ind_name_table(n)%name)
+        units = '1/cm^2/s'
+        coordinates = 'TLONG TLAT time'
+        call define_tavg_field(tavg_ANTITRACER_FORCING(n), sname, 2, &
+              long_name=lname, units=units, grid_loc='2110', coordinates=coordinates)
+    end do
 
 !EOC
   end subroutine antitracer_init_tavg
@@ -546,6 +559,8 @@ contains
                    surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(forcing_info%surface_strdata_var_ind)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
             enddo
           enddo
+          call accumulate_tavg_field(tracer_forcing_data(:,:,iblock), tavg_ANTITRACER_FORCING(n_tracer), iblock, 1)
+
         enddo
       end associate
     end do
