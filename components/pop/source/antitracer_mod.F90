@@ -657,7 +657,7 @@ contains
     real (r8), parameter :: b = -136.25_r8
     real (r8), parameter :: c =   4.7353_r8
     real (r8), parameter :: d =  -0.092307_r8
-    real (r8), parameter :: e =   7.754e-7_r8
+    real (r8), parameter :: e =   0.0007555_r8
 
 !-----------------------------------------------------------------------
     do j = 1, ny_block
