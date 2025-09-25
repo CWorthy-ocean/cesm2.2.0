@@ -523,8 +523,10 @@ contains
     real (r8), dimension(nx_block,ny_block) :: &
       IFRAC_USED, XKW_USED, ANTITRACER_SCHMIDT, XKW_ICE, PV
 
-    ! Renamed to avoid confusion with the dummy argument
     real(r8), dimension(nx_block,ny_block,max_blocks_clinic) :: tracer_forcing_data
+    
+    ! Storage for the pre-computed, tracer-independent piston velocity
+    real(r8), dimension(nx_block,ny_block,max_blocks_clinic) :: PV_field
 
 !-----------------------------------------------------------------------
 
@@ -546,34 +548,9 @@ contains
         first_call_this_timestep = .false.
     end if
 
-    ! Get forcing data for ALL tracers first
-    do n_tracer = 1, antitracer_tracer_cnt
-      associate(forcing_info => all_antitracer_forcing_info(n_tracer))
-        do iblock = 1, nblocks_clinic
-          this_block = get_block(blocks_clinic(iblock), iblock)
-          n_idx = 0
-          do j = this_block%jb, this_block%je
-            do i = this_block%ib, this_block%ie
-              n_idx = n_idx + 1
-              tracer_forcing_data(i,j,iblock) = &
-                   surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(forcing_info%surface_strdata_var_ind)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
-            enddo
-          enddo
-          call accumulate_tavg_field(tracer_forcing_data(:,:,iblock), tavg_ANTITRACER_FORCING(n_tracer), iblock, 1)
-
-        enddo
-      end associate
-    end do
-
-    ! Apply halo update to the forcing data
-    call POP_HaloUpdate(tracer_forcing_data, POP_haloClinic, &
-                        POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 0.0_r8)
-    if (errorCode /= POP_Success) then
-        call document(subname, 'error updating halo for antitracer forcing field')
-        call exit_POP(sigAbort, 'Stopping in ' // subname)
-    endif
-
-    ! Loop over blocks, then tracers
+    !=======================================================================
+    ! STEP 1: Pre-compute tracer-independent fields for all blocks first.
+    !=======================================================================
     do iblock = 1, nblocks_clinic
         ! Pre-compute common gas exchange parameters for this block
         where (LAND_MASK(:,:,iblock))
@@ -583,11 +560,14 @@ contains
             IFRAC_USED = c0
             XKW_USED   = c0
         endwhere
+        ! Clamp ice fraction values
         where (LAND_MASK(:,:,iblock) .and. IFRAC_USED < c0) IFRAC_USED = c0
         where (LAND_MASK(:,:,iblock) .and. IFRAC_USED > c1) IFRAC_USED = c1
-
+    
+        ! Compute Schmidt number from Sea Surface Temperature (SST)
         call comp_antitracer_schmidt(LAND_MASK(:,:,iblock), SST(:,:,iblock), ANTITRACER_SCHMIDT)
-
+    
+        ! Compute final piston velocity (PV)
         where (LAND_MASK(:,:,iblock))
             XKW_ICE = (c1 - IFRAC_USED) * XKW_USED
             PV      = XKW_ICE * sqrt(660.0_r8 / ANTITRACER_SCHMIDT)
@@ -595,23 +575,57 @@ contains
             XKW_ICE = c0
             PV      = c0
         endwhere
-
+    
+        ! Store the computed piston velocity for this block for later use
+        PV_field(:,:,iblock) = PV(:,:)
+    
+        ! Optional: Store intermediate fields for time averaging/diagnostics
         ANTITRACER_SFLUX_TAVG(:,:,1,iblock) = IFRAC_USED(:,:)
         ANTITRACER_SFLUX_TAVG(:,:,2,iblock) = XKW_USED(:,:)
         ANTITRACER_SFLUX_TAVG(:,:,3,iblock) = ANTITRACER_SCHMIDT(:,:)
         ANTITRACER_SFLUX_TAVG(:,:,4,iblock) = PV(:,:)
+    end do
 
-        ! Now loop over tracers and compute the final flux using this block's PV
-        do n_tracer = 1, antitracer_tracer_cnt
-            associate(forcing_info => all_antitracer_forcing_info(n_tracer))
+    !=======================================================================
+    ! STEP 2: Loop over each tracer individually, using the pre-computed fields.
+    !=======================================================================
+    do n_tracer = 1, antitracer_tracer_cnt
+        associate(forcing_info => all_antitracer_forcing_info(n_tracer))
+    
+            ! a) Get forcing data for THIS tracer into the reusable 3D array
+            do iblock = 1, nblocks_clinic
+                this_block = get_block(blocks_clinic(iblock), iblock)
+                n_idx = 0
+                do j = this_block%jb, this_block%je
+                    do i = this_block%ib, this_block%ie
+                        n_idx = n_idx + 1
+                        tracer_forcing_data(i,j,iblock) = &
+                            surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(forcing_info%surface_strdata_var_ind)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
+                    enddo
+                enddo
+                ! Accumulate time average for this tracer's forcing
+                call accumulate_tavg_field(tracer_forcing_data(:,:,iblock), tavg_ANTITRACER_FORCING(n_tracer), iblock, 1)
+            end do
+    
+            ! b) Apply halo update to THIS tracer's forcing data
+            call POP_HaloUpdate(tracer_forcing_data, POP_haloClinic, &
+                                POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 0.0_r8)
+            if (errorCode /= POP_Success) then
+                call document(subname, 'error updating halo for antitracer forcing field')
+                call exit_POP(sigAbort, 'Stopping in ' // subname)
+            endif
+    
+            ! c) Compute the final flux using the pre-computed PV_field
+            do iblock = 1, nblocks_clinic
                 where (LAND_MASK(:,:,iblock))
                     STF_MODULE(:,:,n_tracer,iblock) = forcing_info%scale_factor * tracer_forcing_data(:,:,iblock) - &
-                                                      (PV / BETA) * SURF_VALS(:,:,n_tracer,iblock)
+                                                      (PV_field(:,:,iblock) / BETA) * SURF_VALS(:,:,n_tracer,iblock)
                 elsewhere
                     STF_MODULE(:,:,n_tracer,iblock) = c0
                 endwhere
-            end associate
-        end do
+            end do
+    
+        end associate
     end do
 
     call timer_stop(antitracer_sflux_timer)
