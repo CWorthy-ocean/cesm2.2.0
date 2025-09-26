@@ -75,7 +75,10 @@
        antitracer_tracer_cnt,             &
        antitracer_init,                   &
        antitracer_set_sflux,              &
-       antitracer_tavg_forcing
+       antitracer_tavg_forcing,           &
+       antitracer_column_integral_tavg,   &
+       tavg_ANTITRACER_COLUMN_INTEGRAL   
+
 
    use iage_mod, only:             &
        iage_tracer_cnt,            &
@@ -1691,6 +1694,12 @@
 
    if (antitracer_on) then
       call antitracer_tavg_forcing
+      ! Accumulate the column-integrated diagnostic for antitracers
+      if (accumulate_tavg_now(tavg_ANTITRACER_COLUMN_INTEGRAL(1))) then
+        call antitracer_column_integral_tavg( &
+            TRACER(:,:,:,antitracer_ind_begin:antitracer_ind_end,:,:), &
+            DZ, KMT)
+      endif
    end if
 
 !-----------------------------------------------------------------------

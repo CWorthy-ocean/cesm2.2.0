@@ -69,12 +69,17 @@ module antitracer_mod
         antitracer_tracer_cnt, &
         antitracer_init, &
         antitracer_set_sflux,  &
-        antitracer_tavg_forcing
+        antitracer_tavg_forcing, &
+        antitracer_column_integral_tavg, &
+        tavg_ANTITRACER_COLUMN_INTEGRAL
+
+
 
 !EOP
 !BOC
 
     integer (int_kind), dimension(:), allocatable :: tavg_ANTITRACER_FORCING
+    integer (int_kind), dimension(:), allocatable :: tavg_ANTITRACER_COLUMN_INTEGRAL
 
 !-----------------------------------------------------------------------
 ! module variables required by passive_tracers
@@ -408,6 +413,19 @@ contains
               long_name=lname, units=units, grid_loc='2110', coordinates=coordinates)
     end do
 
+    ! === Define TAVG fields for column-integrated tracers ===
+    allocate(tavg_ANTITRACER_COLUMN_INTEGRAL(antitracer_tracer_cnt))
+
+    do n = 1, antitracer_tracer_cnt
+        sname = trim(ind_name_table(n)%name) // '_COL_INT'
+        lname = 'Column Integrated ' // trim(ind_name_table(n)%name)
+        units = '1/cm^2'  ! units are (1/cm^3) * cm
+        coordinates = 'TLONG TLAT time'
+
+        call define_tavg_field(tavg_ANTITRACER_COLUMN_INTEGRAL(n), sname, 2, &
+                               long_name=lname, units=units, grid_loc='2110', &
+                               coordinates=coordinates)
+    end do
 !EOC
   end subroutine antitracer_init_tavg
 
@@ -714,6 +732,63 @@ contains
     end do
 !EOC
   end subroutine antitracer_tavg_forcing
+
+!***********************************************************************
+!BOP
+! !IROUTINE: antitracer_column_integral_tavg
+! !INTERFACE:
+
+  subroutine antitracer_column_integral_tavg(TRACER_MODULE, DZ, KMT)
+
+! !DESCRIPTION:
+! Compute and accumulate the time-average for the column-integrated
+! amount of each antitracer. The result has units of 1/cm^2.
+
+! !USES:
+    ! DZ and KMT are now passed as arguments, so they are removed from here.
+    use prognostic, only: curtime
+
+! !INPUT PARAMETERS:
+    ! This declaration matches the slice being passed from passive_tracers
+    real (r8), dimension(nx_block,ny_block,km,antitracer_tracer_cnt,3,max_blocks_clinic), &
+      intent(in) :: TRACER_MODULE
+
+    ! << ADDED >>: Explicit declarations for the dummy arguments
+    real (r8), dimension(km), intent(in) :: DZ
+    integer (int_kind), dimension(nx_block,ny_block,max_blocks_clinic), intent(in) :: KMT
+
+!EOP
+!BOC
+!-----------------------------------------------------------------------
+! local variables
+!-----------------------------------------------------------------------
+    integer (int_kind) :: iblock, n_tracer, k
+    real (r8), dimension(nx_block,ny_block) :: col_int_field
+!-----------------------------------------------------------------------
+
+    do iblock = 1, nblocks_clinic
+      do n_tracer = 1, antitracer_tracer_cnt
+
+        ! Zero the temporary field for this block and tracer
+        col_int_field = c0
+
+        ! Sum (concentration * layer thickness) over the water column
+        do k = 1, km
+          where (k <= KMT(:,:,iblock))
+            col_int_field(:,:) = col_int_field(:,:) + &
+                                 TRACER_MODULE(:,:,k,n_tracer,curtime,iblock) * DZ(k)
+          endwhere
+        enddo
+
+        ! Accumulate the result into the tavg field for this tracer
+        call accumulate_tavg_field(col_int_field, &
+                                   tavg_ANTITRACER_COLUMN_INTEGRAL(n_tracer), &
+                                   iblock, 1)
+      enddo ! end n_tracer loop
+    enddo ! end iblock loop
+
+!EOC
+  end subroutine antitracer_column_integral_tavg
 
 !***********************************************************************
 

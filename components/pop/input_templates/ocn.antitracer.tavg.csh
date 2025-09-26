@@ -35,5 +35,6 @@ while ($i <= $num_antitracers)
   echo "$s1  ANTITRACER${i}"          >> $CASEROOT/Buildconf/popconf/antitracer_tavg_contents
   echo "$s1  ANTITRACER${i}_FORCING" >> $CASEROOT/Buildconf/popconf/antitracer_tavg_contents
   echo "$s1  STF_ANTITRACER${i}"    >> $CASEROOT/Buildconf/popconf/antitracer_tavg_contents
+  echo "$s1  ANTITRACER${i}_COL_INT"  >> $CASEROOT/Buildconf/popconf/antitracer_tavg_contents  # << ADD THIS LINE
   @ i++
 end
