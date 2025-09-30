@@ -236,7 +236,7 @@ contains
       call int_to_char(3, n, n_char)
       antitracer_forcing_nml_array(n)%name         = 'ANTITRACER' // n_char
       antitracer_forcing_nml_array(n)%file         = 'unknown'
-      antitracer_forcing_nml_array(n)%varname      = 'antitracer_forcing' // n_char
+      antitracer_forcing_nml_array(n)%varname      = 'alk_forcing'
       antitracer_forcing_nml_array(n)%year_first   = 1999
       antitracer_forcing_nml_array(n)%year_last    = 2019
       antitracer_forcing_nml_array(n)%year_align   = 347
@@ -283,15 +283,19 @@ contains
     end do
 
     do n = 1, antitracer_tracer_cnt
-      all_antitracer_forcing_info(n)%name           = antitracer_forcing_nml_array(n)%name
-      all_antitracer_forcing_info(n)%tracer_local_idx = n
-      all_antitracer_forcing_info(n)%filename       = antitracer_forcing_nml_array(n)%file
-      all_antitracer_forcing_info(n)%file_varname   = antitracer_forcing_nml_array(n)%varname
-      all_antitracer_forcing_info(n)%year_first     = antitracer_forcing_nml_array(n)%year_first
-      all_antitracer_forcing_info(n)%year_last      = antitracer_forcing_nml_array(n)%year_last
-      all_antitracer_forcing_info(n)%year_align     = antitracer_forcing_nml_array(n)%year_align
-      all_antitracer_forcing_info(n)%scale_factor   = antitracer_forcing_nml_array(n)%scale_factor
-      ind_name_table(n) = ind_name_pair(n, antitracer_forcing_nml_array(n)%name)
+
+        ! Now populate the rest of the info
+        all_antitracer_forcing_info(n)%tracer_local_idx = n
+        all_antitracer_forcing_info(n)%name             = antitracer_forcing_nml_array(n)%name
+        all_antitracer_forcing_info(n)%filename         = antitracer_forcing_nml_array(n)%file
+        all_antitracer_forcing_info(n)%file_varname     = antitracer_forcing_nml_array(n)%varname
+        all_antitracer_forcing_info(n)%year_first       = antitracer_forcing_nml_array(n)%year_first
+        all_antitracer_forcing_info(n)%year_last        = antitracer_forcing_nml_array(n)%year_last
+        all_antitracer_forcing_info(n)%year_align       = antitracer_forcing_nml_array(n)%year_align
+        all_antitracer_forcing_info(n)%scale_factor     = antitracer_forcing_nml_array(n)%scale_factor
+
+        ! Use the newly constructed name for the name table
+        ind_name_table(n) = ind_name_pair(n, all_antitracer_forcing_info(n)%name)
     end do
 
     if (size(tracer_d_module) < antitracer_tracer_cnt) then
