@@ -240,7 +240,7 @@ contains
       antitracer_forcing_nml_array(n)%year_first   = 1999
       antitracer_forcing_nml_array(n)%year_last    = 2019
       antitracer_forcing_nml_array(n)%year_align   = 347
-      antitracer_forcing_nml_array(n)%scale_factor = 1.0e4_r8
+      antitracer_forcing_nml_array(n)%scale_factor = 1.0e5_r8
     end do
 
     if (my_task == master_task) then
@@ -540,7 +540,6 @@ contains
     integer (int_kind)       :: iblock, n_tracer, m, i, j, n_idx
     integer(POP_i4)          :: errorCode
     type(block)              :: this_block
-    logical(log_kind), save   :: first_call_this_timestep = .true.
 
     real (r8), dimension(nx_block,ny_block) :: &
       IFRAC_USED, XKW_USED, ANTITRACER_SCHMIDT, XKW_ICE, PV
@@ -563,12 +562,9 @@ contains
     endif
 
     ! Advance all unique shr_strdata streams once per timestep
-    if (first_call_this_timestep) then
-        do m = 1, size(surface_strdata_inputlist_ptr)
-            call POP_strdata_advance(surface_strdata_inputlist_ptr(m))
-        end do
-        first_call_this_timestep = .false.
-    end if
+    do m = 1, size(surface_strdata_inputlist_ptr)
+        call POP_strdata_advance(surface_strdata_inputlist_ptr(m))
+    end do
 
     !=======================================================================
     ! STEP 1: Pre-compute tracer-independent fields for all blocks first.
@@ -626,7 +622,7 @@ contains
                     enddo
                 enddo
                 ! Accumulate time average for this tracer's forcing
-                call accumulate_tavg_field(tracer_forcing_data(:,:,iblock), tavg_ANTITRACER_FORCING(n_tracer), iblock, 1)
+                call accumulate_tavg_field(forcing_info%scale_factor * tracer_forcing_data(:,:,iblock), tavg_ANTITRACER_FORCING(n_tracer), iblock, 1)
             end do
     
             ! b) Apply halo update to THIS tracer's forcing data
