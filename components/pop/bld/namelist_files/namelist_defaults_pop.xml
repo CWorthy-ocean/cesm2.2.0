@@ -1293,6 +1293,12 @@
 <antitracer_forcing_nml_array(1)%year_align>347</antitracer_forcing_nml_array(1)%year_align>
 <antitracer_forcing_nml_array(1)%scale_factor>1.0e4</antitracer_forcing_nml_array(1)%scale_factor>
 
+<beta_forcing_nml%file>unknown</beta_forcing_nml%file>
+<beta_forcing_nml%varname>BETA</beta_forcing_nml%varname>
+<beta_forcing_nml%year_first>1998</beta_forcing_nml%year_first>
+<beta_forcing_nml%year_last>2020</beta_forcing_nml%year_last>
+<beta_forcing_nml%year_align>347</beta_forcing_nml%year_align>
+
 <!---------------------------->
 <!--    abio_dic_dic14_nml  -->
 <!---------------------------->

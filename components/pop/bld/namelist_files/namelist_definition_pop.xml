@@ -5816,6 +5816,52 @@ Scaling factor for the forcing data (e.g., for unit conversion) for each antitra
 Default: 1.0e4
 </entry>
 
+<entry
+  id="beta_forcing_nml%file"
+  type="char*256"
+  category="Passive Tracers (Antitracer BETA)"
+  group="antitracer_nml"
+  input_pathname="abs" >
+Path to the forcing file for the shared BETA field.
+Default: 'unknown'
+</entry>
+
+<entry
+  id="beta_forcing_nml%varname"
+  type="char*256"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Variable name within the forcing file for the BETA field.
+Default: 'BETA'
+</entry>
+
+<entry
+  id="beta_forcing_nml%year_first"
+  type="integer"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+First year in the forcing data stream for the BETA field.
+Default: 1
+</entry>
+
+<entry
+  id="beta_forcing_nml%year_last"
+  type="integer"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Last year in the forcing data stream for the BETA field.
+Default: 1
+</entry>
+
+<entry
+  id="beta_forcing_nml%year_align"
+  type="integer"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Align this forcing stream's first year with this model year.
+Default: 1
+</entry>
+
 <!-- - - - - - - - - - - - - - - - - - -->
 <!-- Group: abio_dic_dic14_nml       - -->
 <!-- - - - - - - - - - - - - - - - - - -->

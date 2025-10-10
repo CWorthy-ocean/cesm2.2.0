@@ -71,9 +71,8 @@ module antitracer_mod
         antitracer_set_sflux,  &
         antitracer_tavg_forcing, &
         antitracer_column_integral_tavg, &
-        tavg_ANTITRACER_COLUMN_INTEGRAL
-
-
+        tavg_ANTITRACER_COLUMN_INTEGRAL, &
+        beta_forcing_nml
 
 !EOP
 !BOC
@@ -98,7 +97,6 @@ module antitracer_mod
 
     type(ind_name_pair), dimension(:), allocatable :: ind_name_table
 
-    ! New derived type to store forcing information for each antitracer
     type antitracer_forcing_info_type
         character(char_len) :: name
         integer(int_kind)   :: tracer_local_idx
@@ -113,6 +111,26 @@ module antitracer_mod
     end type antitracer_forcing_info_type
 
     type(antitracer_forcing_info_type), dimension(:), allocatable :: all_antitracer_forcing_info
+
+    ! beta = carbonate sensitivity to be read in
+    type beta_forcing_nml_type
+        character(char_len) :: file, varname
+        integer(int_kind)   :: year_first, year_last, year_align
+    end type beta_forcing_nml_type
+    
+    type(beta_forcing_nml_type) :: beta_forcing_nml
+
+    type beta_stream_info_type
+        character(char_len) :: filename, file_varname
+        integer(int_kind)   :: year_first, year_last, year_align
+        integer(int_kind)   :: surface_strdata_inputlist_ind
+        integer(int_kind)   :: surface_strdata_var_ind
+    end type beta_stream_info_type
+    
+    type(beta_stream_info_type) :: beta_info
+
+    ! Module-level storage for the BETA field
+    real(r8), dimension(:,:,:), allocatable :: BETA_FIELD
 
 !-----------------------------------------------------------------------
 ! mask that eases avoidance of computation over land
@@ -144,8 +162,6 @@ module antitracer_mod
 !-----------------------------------------------------------------------
 
     integer (int_kind) :: antitracer_sflux_timer
-
-    real(r8), parameter :: BETA = 1.0_r8
 
 !EOC
 !***********************************************************************
@@ -211,7 +227,7 @@ contains
 
     namelist /antitracer_nml/ &
       init_antitracer_option, init_antitracer_init_file, init_antitracer_init_file_fmt, &
-      tracer_init_ext, antitracer_forcing_nml_array
+      tracer_init_ext, antitracer_forcing_nml_array, beta_forcing_nml
 
 !-----------------------------------------------------------------------
 ! default namelist settings
@@ -242,6 +258,12 @@ contains
       antitracer_forcing_nml_array(n)%year_align   = 347
       antitracer_forcing_nml_array(n)%scale_factor = 1.0e5_r8
     end do
+
+    beta_forcing_nml%file = 'unknown'
+    beta_forcing_nml%varname = 'BETA'
+    beta_forcing_nml%year_first   = 1998
+    beta_forcing_nml%year_last    = 2020
+    beta_forcing_nml%year_align   = 347
 
     if (my_task == master_task) then
        open (nml_in, file=nml_filename, status='old', iostat=nml_error)
@@ -282,6 +304,12 @@ contains
       call broadcast_scalar(antitracer_forcing_nml_array(n)%scale_factor, master_task)
     end do
 
+    call broadcast_scalar(beta_forcing_nml%file, master_task)
+    call broadcast_scalar(beta_forcing_nml%varname, master_task)
+    call broadcast_scalar(beta_forcing_nml%year_first, master_task)
+    call broadcast_scalar(beta_forcing_nml%year_last, master_task)
+    call broadcast_scalar(beta_forcing_nml%year_align, master_task)
+
     do n = 1, antitracer_tracer_cnt
 
         ! Now populate the rest of the info
@@ -297,6 +325,13 @@ contains
         ! Use the newly constructed name for the name table
         ind_name_table(n) = ind_name_pair(n, all_antitracer_forcing_info(n)%name)
     end do
+
+    beta_info%filename    = beta_forcing_nml%file
+    beta_info%file_varname  = beta_forcing_nml%varname
+    beta_info%year_first  = beta_forcing_nml%year_first
+    beta_info%year_last   = beta_forcing_nml%year_last
+    beta_info%year_align  = beta_forcing_nml%year_align
+    beta_info%surface_strdata_inputlist_ind = 0 ! Initialize
 
     if (size(tracer_d_module) < antitracer_tracer_cnt) then
       call exit_POP(sigAbort, 'TRACER_MODULE allocation error in ' // subname)
@@ -358,6 +393,9 @@ contains
 
     allocate( LAND_MASK(nx_block,ny_block,max_blocks_clinic) )
     LAND_MASK = (KMT .gt. 0)
+
+    allocate(BETA_FIELD(nx_block, ny_block, max_blocks_clinic))
+    BETA_FIELD = 1.0_r8 ! Set a default value in case file is not provided
 
     call get_timer(antitracer_sflux_timer, 'ANTITRACER_SFLUX', 1, distrb_clinic%nprocs)
 
@@ -454,6 +492,10 @@ contains
       allocate(surface_strdata_inputlist_ptr(0))
     end if
 
+    !===================================================================
+    ! SECTION 1: Set up data streams for each individual antitracer
+    !===================================================================
+
     do n_tracer = 1, antitracer_tracer_cnt
       associate(forcing_info => all_antitracer_forcing_info(n_tracer))
         call POP_strdata_type_set(surface_strdata_input_var, &
@@ -500,6 +542,54 @@ contains
       end associate
     end do
 
+    !===================================================================
+    ! SECTION 2: Set up the data stream for the shared BETA field
+    !===================================================================
+    if (trim(beta_info%filename) /= 'unknown') then
+        call POP_strdata_type_set(surface_strdata_input_var, &
+            file_name   = beta_info%filename, &
+            field       = beta_info%file_varname, &
+            timer_label = 'antitracer_beta_file', &
+            year_first  = beta_info%year_first, &
+            year_last   = beta_info%year_last, & 
+            year_align  = beta_info%year_align, &
+            depth_flag  = .false., &
+            tintalgo    = 'linear', &
+            taxMode     = 'cycle')
+
+        n_strdata_entries = size(surface_strdata_inputlist_ptr)
+        beta_info%surface_strdata_inputlist_ind = 0
+
+        ! Loop through existing streams to find a match
+        do m = 1, n_strdata_entries
+            if (POP_strdata_type_match(surface_strdata_input_var, surface_strdata_inputlist_ptr(m))) then
+                call POP_strdata_type_append_field(beta_info%file_varname, surface_strdata_inputlist_ptr(m))
+                beta_info%surface_strdata_inputlist_ind = m
+                exit
+            endif
+        end do
+
+        ! If no match was found, create a new stream
+        if (beta_info%surface_strdata_inputlist_ind == 0) then
+          n_strdata_entries = n_strdata_entries + 1
+          allocate(surface_strdata_inputlist_tmp_ptr(n_strdata_entries))
+          if (associated(surface_strdata_inputlist_ptr) .and. size(surface_strdata_inputlist_ptr) > 0) then
+             do m = 1, n_strdata_entries - 1
+                call POP_strdata_type_cp(surface_strdata_inputlist_ptr(m), &
+                                         surface_strdata_inputlist_tmp_ptr(m))
+             end do
+             deallocate(surface_strdata_inputlist_ptr)
+          endif
+          surface_strdata_inputlist_ptr => surface_strdata_inputlist_tmp_ptr
+          call POP_strdata_type_cp(surface_strdata_input_var, surface_strdata_inputlist_ptr(n_strdata_entries))
+          beta_info%surface_strdata_inputlist_ind = n_strdata_entries
+        endif
+
+        beta_info%surface_strdata_var_ind = POP_strdata_type_field_count( &
+            surface_strdata_inputlist_ptr(beta_info%surface_strdata_inputlist_ind))
+    endif
+
+
 !EOC
   end subroutine antitracer_init_sflux
 
@@ -540,9 +630,10 @@ contains
     integer (int_kind)       :: iblock, n_tracer, m, i, j, n_idx
     integer(POP_i4)          :: errorCode
     type(block)              :: this_block
+    logical(log_kind), save  :: first_call_this_timestep = .true.
 
     real (r8), dimension(nx_block,ny_block) :: &
-      IFRAC_USED, XKW_USED, ANTITRACER_SCHMIDT, XKW_ICE, PV
+      IFRAC_USED, XKW_USED, ANTITRACER_SCHMIDT, XKW_ICE, PV, tmp_pv
 
     real(r8), dimension(nx_block,ny_block,max_blocks_clinic) :: tracer_forcing_data
     
@@ -561,10 +652,36 @@ contains
       antitracer_io_initialized = .true.
     endif
 
-    ! Advance all unique shr_strdata streams once per timestep
-    do m = 1, size(surface_strdata_inputlist_ptr)
-        call POP_strdata_advance(surface_strdata_inputlist_ptr(m))
-    end do
+    ! Advance all unique shr_strdata streams ONCE per timestep
+    if (first_call_this_timestep) then
+        do m = 1, size(surface_strdata_inputlist_ptr)
+            call POP_strdata_advance(surface_strdata_inputlist_ptr(m))
+        end do
+        first_call_this_timestep = .false. ! Prevent re-running in the same timestep
+    end if
+
+    ! Read the shared BETA field once per timestep
+    if (beta_info%surface_strdata_inputlist_ind > 0) then
+        do iblock = 1, nblocks_clinic
+            this_block = get_block(blocks_clinic(iblock), iblock)
+            n_idx = 0
+            do j = this_block%jb, this_block%je
+                do i = this_block%ib, this_block%ie
+                    n_idx = n_idx + 1
+                    BETA_FIELD(i,j,iblock) = &
+                        surface_strdata_inputlist_ptr(beta_info%surface_strdata_inputlist_ind)%sdat%avs(beta_info%surface_strdata_var_ind)%rAttr(beta_info%surface_strdata_var_ind, n_idx)
+                enddo
+            enddo
+        enddo
+
+        call POP_HaloUpdate(BETA_FIELD, POP_haloClinic, &
+                            POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 1.0_r8)
+        if (errorCode /= POP_Success) then
+            call document(subname, 'error updating halo for BETA field')
+            call exit_POP(sigAbort, 'Stopping in ' // subname)
+        endif
+    endif
+
 
     !=======================================================================
     ! STEP 1: Pre-compute tracer-independent fields for all blocks first.
@@ -633,11 +750,18 @@ contains
                 call exit_POP(sigAbort, 'Stopping in ' // subname)
             endif
     
-            ! c) Compute the final flux using the pre-computed PV_field
+            ! c) Compute the final flux using the pre-computed PV_field and shared BETA_FIELD
             do iblock = 1, nblocks_clinic
                 where (LAND_MASK(:,:,iblock))
+                    tmp_pv = PV_field(:,:,iblock)
+                    where (BETA_FIELD(:,:,iblock) > 1.0e-10_r8)
+                        tmp_pv = tmp_pv / BETA_FIELD(:,:,iblock)
+                    elsewhere
+                        tmp_pv = 0.0_r8
+                    endwhere
+
                     STF_MODULE(:,:,n_tracer,iblock) = forcing_info%scale_factor * tracer_forcing_data(:,:,iblock) - &
-                                                      (PV_field(:,:,iblock) / BETA) * SURF_VALS(:,:,n_tracer,iblock)
+                                                      tmp_pv * SURF_VALS(:,:,n_tracer,iblock)
                 elsewhere
                     STF_MODULE(:,:,n_tracer,iblock) = c0
                 endwhere
