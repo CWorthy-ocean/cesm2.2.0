@@ -630,7 +630,6 @@ contains
     integer (int_kind)       :: iblock, n_tracer, m, i, j, n_idx
     integer(POP_i4)          :: errorCode
     type(block)              :: this_block
-    logical(log_kind), save  :: first_call_this_timestep = .true.
 
     real (r8), dimension(nx_block,ny_block) :: &
       IFRAC_USED, XKW_USED, ANTITRACER_SCHMIDT, XKW_ICE, PV, tmp_pv
@@ -652,13 +651,9 @@ contains
       antitracer_io_initialized = .true.
     endif
 
-    ! Advance all unique shr_strdata streams ONCE per timestep
-    if (first_call_this_timestep) then
-        do m = 1, size(surface_strdata_inputlist_ptr)
-            call POP_strdata_advance(surface_strdata_inputlist_ptr(m))
-        end do
-        first_call_this_timestep = .false. ! Prevent re-running in the same timestep
-    end if
+    do m = 1, size(surface_strdata_inputlist_ptr)
+        call POP_strdata_advance(surface_strdata_inputlist_ptr(m))
+    end do
 
     ! Read the shared BETA field once per timestep
     if (beta_info%surface_strdata_inputlist_ind > 0) then
