@@ -455,7 +455,6 @@ contains
               long_name=lname, units=units, grid_loc='2110', coordinates=coordinates)
     end do
 
-    ! === Define TAVG fields for column-integrated tracers ===
     allocate(tavg_ANTITRACER_COLUMN_INTEGRAL(antitracer_tracer_cnt))
 
     do n = 1, antitracer_tracer_cnt
@@ -464,7 +463,8 @@ contains
         units = '1/cm^2'  ! units are (1/cm^3) * cm
         coordinates = 'TLONG TLAT time'
 
-        call define_tavg_field(tavg_ANTITRACER_COLUMN_INTEGRAL(n), sname, 2, &
+        ! we need snapshots of the state of DIC to track the DIC deficit
+        call define_tavg_field(tavg_ANTITRACER_COLUMN_INTEGRAL(n), sname, 1, &
                                long_name=lname, units=units, grid_loc='2110', &
                                coordinates=coordinates)
     end do
