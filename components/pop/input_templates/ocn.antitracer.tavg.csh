@@ -44,5 +44,4 @@ foreach index ($master_indices)
   echo "$s1  ANTITRACER${padded_index}"           >> ${output_file}
   echo "$s1  ANTITRACER${padded_index}_FORCING"  >> ${output_file}
   echo "$s1  STF_ANTITRACER${padded_index}"      >> ${output_file}
-  echo "$s1  ANTITRACER${padded_index}_COL_INT"  >> ${output_file}
 end
