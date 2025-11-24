@@ -5754,7 +5754,7 @@ Default: 'bin'
 
 <entry
 id="antitracer_forcing_nml_array%name"
-type="char*256(9)"
+type="char*256(1000)"
 category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
 Names for each individual antitracer. Used in diagnostics and namelist generation.
@@ -5763,7 +5763,7 @@ Default: 'ANTITRACER1'
 
 <entry
 id="antitracer_forcing_nml_array%file"
-type="char*256(9)"
+type="char*256(1000)"
 category="Passive Tracers (Antitracer)"
 group="antitracer_nml"
 input_pathname="abs" >
@@ -5773,7 +5773,7 @@ Default: 'unknown' (requires user specification)
 
 <entry
 id="antitracer_forcing_nml_array%varname"
-type="char*256(9)"
+type="char*256(1000)"
 category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
 Variable name within the forcing file for each antitracer.
@@ -5782,7 +5782,7 @@ Default: 'alk_forcing'
 
 <entry
 id="antitracer_forcing_nml_array%year_first"
-type="integer(9)"
+type="integer(1000)"
 category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
 First year in the forcing data stream for each antitracer.
@@ -5791,7 +5791,7 @@ Default: 1999
 
 <entry
 id="antitracer_forcing_nml_array%year_last"
-type="integer(9)"
+type="integer(1000)"
 category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
 Last year in the forcing data stream for each antitracer.
@@ -5800,7 +5800,7 @@ Default: 2019
 
 <entry
 id="antitracer_forcing_nml_array%year_align"
-type="integer(9)"
+type="integer(1000)"
 category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
 Align this forcing stream's first year with this model year.
@@ -5809,7 +5809,7 @@ Default: 347
 
 <entry
 id="antitracer_forcing_nml_array%scale_factor"
-type="real(9)"
+type="real(1000)"
 category="Passive Tracers (Antitracer)"
 group="antitracer_nml" >
 Scaling factor for the forcing data (e.g., for unit conversion) for each antitracer.
