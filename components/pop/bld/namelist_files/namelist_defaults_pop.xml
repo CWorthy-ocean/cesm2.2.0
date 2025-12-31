@@ -1281,9 +1281,8 @@
 <!--        antitracer_nml         -->
 <!---------------------------->
 
-<init_antitracer_option>zero</init_antitracer_option>
 <init_antitracer_init_file>same_as_TS</init_antitracer_init_file>
-<init_antitracer_init_file_fmt>bin</init_antitracer_init_file_fmt>
+<init_antitracer_init_file_fmt>nc</init_antitracer_init_file_fmt>
 
 <antitracer_forcing_nml_array(1)%name>ANTITRACER1</antitracer_forcing_nml_array(1)%name>
 <antitracer_forcing_nml_array(1)%file>unknown</antitracer_forcing_nml_array(1)%file>

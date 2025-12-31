@@ -5722,11 +5722,11 @@ id="init_antitracer_option"
 type="char*256"
 category="Passive Tracers (Antitracer)"
 group="antitracer_nml"
-valid_values="zero,restart,file" >
+valid_values="ccsm_startup,zero,ccsm_startup_spunup,restart,ccsm_continue,ccsm_branch,ccsm_hybrid,file" >
 Option for initialization of antitracers.
 
-Valid Values: 'zero', 'restart', 'file'
-Default: 'zero'
+Valid Values: 'ccsm_startup', 'zero', 'ccsm_startup_spunup', 'restart', 'ccsm_continue', 'ccsm_branch', 'ccsm_hybrid', 'file'
+	Default: 'ccsm_$RUNTYPE'
 </entry>
 
 <entry

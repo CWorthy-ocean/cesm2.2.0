@@ -231,7 +231,7 @@ contains
 !-----------------------------------------------------------------------
     init_antitracer_option      = 'unknown'
     init_antitracer_init_file     = 'unknown'
-    init_antitracer_init_file_fmt = 'bin'
+    init_antitracer_init_file_fmt = 'nc'
 
     allocate(tracer_init_ext(antitracer_tracer_cnt))
     allocate(antitracer_forcing_nml_array(antitracer_tracer_cnt))
@@ -244,7 +244,7 @@ contains
       tracer_init_ext(n)%file_varname = 'unknown'
       tracer_init_ext(n)%scale_factor = c1
       tracer_init_ext(n)%default_val  = c0
-      tracer_init_ext(n)%file_fmt     = 'bin'
+      tracer_init_ext(n)%file_fmt     = 'nc'
 
       call int_to_char(3, n, n_char)
       antitracer_forcing_nml_array(n)%name         = 'ANTITRACER' // n_char
@@ -342,40 +342,72 @@ contains
       tracer_d_module(n)%flux_units = '1/cm^2/s'
     end do
 
-    select case (trim(init_antitracer_option))
-    case ('zero')
-      TRACER_MODULE(:,:,:,1:antitracer_tracer_cnt,curtime,:) = c0
-      TRACER_MODULE(:,:,:,1:antitracer_tracer_cnt,oldtime,:) = c0
+   select case (trim(init_antitracer_option))
 
-    case ('restart')
-      if (trim(init_antitracer_init_file) == 'same_as_TS') then
-        antitracer_restart_filename = read_restart_filename
-        init_antitracer_init_file_fmt = init_ts_file_fmt
-      else
-        antitracer_restart_filename = trim(init_antitracer_init_file)
+   case ('ccsm_startup', 'zero', 'ccsm_startup_spunup')
+      TRACER_MODULE = c0
+      if (my_task == master_task) then
+          write(stdout,delim_fmt)
+          write(stdout,*) ' Initial 3-d ANTITRACERs set to all zeros'
+          write(stdout,delim_fmt)
       endif
+   
+   case ('restart', 'ccsm_continue', 'ccsm_branch', 'ccsm_hybrid' )
+
+      antitracer_restart_filename = char_blank
+
+      if (init_antitracer_init_file == 'same_as_TS') then
+         if (read_restart_filename == 'undefined') then
+            call document(subname, 'no restart file to read ANTITRACER from')
+            call exit_POP(sigAbort, 'stopping in ' /&
+                                 &/ subname)
+         endif
+         antitracer_restart_filename = read_restart_filename
+         init_antitracer_init_file_fmt = init_ts_file_fmt
+
+      else ! do not read from TS restart file
+
+        antitracer_restart_filename = trim(init_antitracer_init_file)
+
+      endif
+
       call rest_read_tracer_block(antitracer_ind_begin, &
             init_antitracer_init_file_fmt, antitracer_restart_filename, &
             tracer_d_module(1:antitracer_tracer_cnt), &
             TRACER_MODULE(:,:,:,1:antitracer_tracer_cnt,:,:))
 
-    case ('file')
+   case ('file')
+
+      call document(subname, 'ANTITRACERs being read from separate file')
+
       call file_read_tracer_block(init_antitracer_init_file_fmt, &
-            init_antitracer_init_file, tracer_d_module(1:antitracer_tracer_cnt), &
-            ind_name_table(1:antitracer_tracer_cnt), tracer_init_ext(1:antitracer_tracer_cnt), &
-            TRACER_MODULE(:,:,:,1:antitracer_tracer_cnt,:,:))
+                                  init_antitracer_init_file,     &
+                                  tracer_d_module,        &
+                                  ind_name_table,         &
+                                  tracer_init_ext,        &
+                                  TRACER_MODULE)
+
       if (n_topo_smooth > 0) then
-        do n = 1, antitracer_tracer_cnt
-          do k = 1, km
-            call fill_points(k,TRACER_MODULE(:,:,k,n,curtime,:), errorCode)
-            if (errorCode /= POP_Success) return
-          end do
-        end do
+         do n = 1, antitracer_tracer_cnt
+            do k = 1, km
+               call fill_points(k,TRACER_MODULE(:,:,k,n,curtime,:), &
+                                errorCode)
+
+               if (errorCode /= POP_Success) then
+                  call POP_ErrorSet(errorCode, &
+                     'antitracer_init: error in fill_points')
+                  return
+               endif
+            end do
+         end do
       endif
 
-    case default
+   case default
+
+      call document(subname, 'init_antitracer_option', init_antitracer_option)
       call exit_POP(sigAbort, 'unknown init_antitracer_option')
-    end select
+
+   end select
 
     do iblock = 1, nblocks_clinic
       do n = 1, antitracer_tracer_cnt
