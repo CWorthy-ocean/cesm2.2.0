@@ -177,30 +177,7 @@ contains
 
   subroutine POP_strdata_create(inputlist)
 
-    use io_types, only : stdout
-
     type(strdata_input_type), intent(inout) :: inputlist
-    integer(int_kind) :: pio_type_debug ! Variable for debug output
-
-    ! ===================================================================
-    ! ==> DEBUG BLOCK: Print arguments before calling the I/O library <==
-    ! ===================================================================
-    if (my_task == master_task) then
-        pio_type_debug = shr_pio_getiotype(inst_name)
-        write(stdout,'(A)') '---------------------------------------------------'
-        write(stdout,'(A)') '==> DEBUG: Inside POP_strdata_create'
-        write(stdout,'(A,A)')   '--> File Name        : ', trim(inputlist%file_name)
-        write(stdout,'(A,A)')   '--> Field List       : ', trim(inputlist%field_list)
-        write(stdout,'(A,L1)')  '--> Using 3D code path : ', inputlist%depth_flag
-        write(stdout,'(A,I0)')  '--> Model nx_global    : ', nx_global
-        write(stdout,'(A,I0)')  '--> Model ny_global    : ', ny_global
-        write(stdout,'(A,I0)')  '--> PIO IO Type      : ', pio_type_debug
-        write(stdout,'(A)')     ' '
-        write(stdout,'(A,A)')   '--> NOTE on PIO IO Type: 1=pnetcdf, 4=netcdf'
-        write(stdout,'(A)')     ' '
-        write(stdout,'(A)') '==> DEBUG: About to call shr_strdata_create...'
-        write(stdout,'(A)') '---------------------------------------------------'
-    endif
 
     if (inputlist%depth_flag) then
        !--- include nzg and domZvarName in call
