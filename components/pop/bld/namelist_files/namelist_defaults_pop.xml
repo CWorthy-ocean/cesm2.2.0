@@ -1278,7 +1278,7 @@
 <psf6_first_nonzero_year>1953</psf6_first_nonzero_year>
 
 <!---------------------------->
-<!--        antitracer_nml         -->
+<!--     antitracer_nml     -->
 <!---------------------------->
 
 <init_antitracer_init_file>same_as_TS</init_antitracer_init_file>
