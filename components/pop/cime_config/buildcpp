@@ -38,8 +38,8 @@ _config_cache_template = """<?xml version="1.0"?>
 <entry id="use_ecosys" value="{use_ecosys}" list="" valid_values="FALSE,TRUE">Use ecosys tracer module</entry>
 <entry id="use_iage" value="{use_iage}" list="" valid_values="FALSE,TRUE">Use ideal age tracer module</entry>
 <entry id="use_irf" value="{use_irf}" list="" valid_values="FALSE,TRUE">Use IRF tracer module</entry>
-<entry id="use_sf6" value="{use_sf6}" list="" valid_values="false,true">use sf6 tracer module</entry>
-<entry id="use_antitracer" value="{use_antitracer}" list="" valid_values="false,true">use antitracer tracer module</entry>
+<entry id="use_sf6" value="{use_sf6}" list="" valid_values="FALSE,TRUE">Use sf6 tracer module</entry>
+<entry id="use_antitracer" value="{use_antitracer}" list="" valid_values="False,True">Use antitracer tracer module</entry>
 <entry id="antitracer_tracer_cnt" value="{ANTITRACER_TRACER_CNT}" list="" valid_values="">Number of Antitracer tracers</entry>
 <entry id="cppdefs" value="{cppdefs}" list="" valid_values="">cppdefs for POP compilation</entry>
 
