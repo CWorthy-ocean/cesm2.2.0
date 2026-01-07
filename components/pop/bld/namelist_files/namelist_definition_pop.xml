@@ -5749,7 +5749,7 @@ valid_values="bin,nc" >
 init_antitracer_init_file format (binary or netCDF).
 
 Valid Values: 'bin', 'nc'
-Default: 'bin'
+Default: 'nc'
 </entry>
 
 <entry
