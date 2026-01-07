@@ -342,6 +342,23 @@ contains
       tracer_d_module(n)%flux_units = '1/cm^2/s'
     end do
 
+    if (my_task == master_task) then
+       write(stdout,*) 'DEBUG: read_restart_filename is: ', trim(read_restart_filename)
+       write(stdout,*) 'DEBUG: init_antitracer_option is: ', trim(init_antitracer_option)
+    endif
+    
+    ! AUTO-SWITCH Logic: Attempt restart if the file is a produced restart, not a startup file like g.e22...
+    if (trim(init_antitracer_option) == 'zero' .and. &
+        read_restart_filename /= 'undefined' .and. &
+        index(read_restart_filename, 'g.e22.') == 0) then
+        
+        init_antitracer_option = 'restart'
+        
+        if (my_task == master_task) then
+           write(stdout,*) 'Antitracer: Found restart file. Switching option to "restart".'
+        endif
+    endif
+
    select case (trim(init_antitracer_option))
 
    case ('ccsm_startup', 'zero', 'ccsm_startup_spunup')
@@ -351,30 +368,34 @@ contains
           write(stdout,*) ' Initial 3-d ANTITRACERs set to all zeros'
           write(stdout,delim_fmt)
       endif
-   
-   case ('restart', 'ccsm_continue', 'ccsm_branch', 'ccsm_hybrid' )
 
-      antitracer_restart_filename = char_blank
+   case ('restart', 'ccsm_continue', 'ccsm_branch', 'ccsm_hybrid')
 
-      if (init_antitracer_init_file == 'same_as_TS') then
-         if (read_restart_filename == 'undefined') then
-            call document(subname, 'no restart file to read ANTITRACER from')
-            call exit_POP(sigAbort, 'stopping in ' /&
-                                 &/ subname)
-         endif
-         antitracer_restart_filename = read_restart_filename
-         init_antitracer_init_file_fmt = init_ts_file_fmt
+       if (init_antitracer_init_file == 'same_as_TS' .and. read_restart_filename == 'undefined') then 
+          ! FIRST RUN FALLBACK: 
+          ! If CESM says "continue" but there's no restart file yet (startup), initialize to zero.
+          TRACER_MODULE = c0 
+          if (my_task == master_task) then
+             write(stdout,*) 'Antitracer: No restart file found, initializing to zero.'
+          endif
+       else 
+          ! SUBSEQUENT RUNS:
+          ! Either we have a restart file, or a specific file was provided in the namelist.
+          antitracer_restart_filename = char_blank
 
-      else ! do not read from TS restart file
+          if (init_antitracer_init_file == 'same_as_TS') then
+             antitracer_restart_filename = read_restart_filename
+             init_antitracer_init_file_fmt = init_ts_file_fmt
+          else
+             antitracer_restart_filename = trim(init_antitracer_init_file)
+          endif
 
-        antitracer_restart_filename = trim(init_antitracer_init_file)
-
-      endif
-
-      call rest_read_tracer_block(antitracer_ind_begin, &
-            init_antitracer_init_file_fmt, antitracer_restart_filename, &
-            tracer_d_module(1:antitracer_tracer_cnt), &
-            TRACER_MODULE(:,:,:,1:antitracer_tracer_cnt,:,:))
+          ! Now safely call the read routine
+          call rest_read_tracer_block(antitracer_ind_begin, &
+                init_antitracer_init_file_fmt, antitracer_restart_filename, &
+                tracer_d_module(1:antitracer_tracer_cnt), &
+                TRACER_MODULE(:,:,:,1:antitracer_tracer_cnt,:,:))
+       endif
 
    case ('file')
 
