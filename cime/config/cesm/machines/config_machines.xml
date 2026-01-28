@@ -2235,6 +2235,11 @@ This allows using a different mpirun command to launch unit tests
       </modules>
     </module_system>
     <environment_variables>
+      <env name="CC">icc</env>
+      <env name="CXX">icpc</env>
+      <env name="FC">ifort</env>
+      <env name="F77">ifort</env>
+      <env name="F90">ifort</env>
       <env name="MPICH_ENV_DISPLAY">1</env>
       <env name="MPICH_VERSION_DISPLAY">1</env>
       <env name="OMP_STACKSIZE">128M</env>
