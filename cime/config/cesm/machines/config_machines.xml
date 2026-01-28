@@ -205,7 +205,7 @@ This allows using a different mpirun command to launch unit tests
     <NODENAME_REGEX>h2o</NODENAME_REGEX>
     <OS>CNL</OS>
     <COMPILERS>intel,pgi,cray,gnu</COMPILERS>
-    <MPILIBS>mpich</MPILIBS>
+    <MPILIBS>openmpi,impi</MPILIBS>
     <PROJECT>banu</PROJECT>
     <CIME_OUTPUT_ROOT>/scratch/sciteam/$USER</CIME_OUTPUT_ROOT>
     <DIN_LOC_ROOT>$ENV{CESMDATAROOT}/inputdata</DIN_LOC_ROOT>
@@ -2180,7 +2180,7 @@ This allows using a different mpirun command to launch unit tests
     <DESC>NERSC EX AMD EPYC, os is CNL, 64 pes/node, batch system is Slurm</DESC>
     <OS>CNL</OS>
     <COMPILERS>intel,gnu,cray,nvidia,aocc</COMPILERS>
-    <MPILIBS>mpich</MPILIBS>
+    <MPILIBS>openmpi,impi</MPILIBS>
     <PROJECT>mp9_g</PROJECT>
     <CIME_OUTPUT_ROOT>$ENV{SCRATCH}</CIME_OUTPUT_ROOT>
     <DIN_LOC_ROOT>/global/cfs/cdirs/ccsm1/inputdata</DIN_LOC_ROOT>
