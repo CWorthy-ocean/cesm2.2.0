@@ -2242,7 +2242,7 @@ This allows using a different mpirun command to launch unit tests
       <env name="PERL5LIB">/anvil/projects/x-ees250129/Ocean-CDR-Atlas-v0/perl5-only-switch</env>
       <env name="FI_CXI_RX_MATCH_MODE">software</env>
       <env name="MPICH_COLL_SYNC">MPI_Bcast</env>
-      <env name="NETCDF_PATH">$ENV{NETCDF_ROOT}</env>
+      <env name="NETCDF_PATH">$ENV{NETCDF_FORTRAN_HOME}</env>
       <env name="NETCDF_C_PATH">$ENV{NETCDF_C_HOME}</env>
       <env name="NETCDF_FORTRAN_PATH">$ENV{NETCDF_FORTRAN_HOME}</env>
       <env name="PNETCDF_PATH">$ENV{PNETCDF_HOME}</env>
