@@ -258,7 +258,7 @@ contains
 
     beta_forcing_nml%file = 'unknown'
     beta_forcing_nml%varname = 'BETA'
-    beta_forcing_nml%year_first   = 1998
+    beta_forcing_nml%year_first   = 1999
     beta_forcing_nml%year_last    = 2020
     beta_forcing_nml%year_align   = 347
 
