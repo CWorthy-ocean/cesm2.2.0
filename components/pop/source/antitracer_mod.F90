@@ -842,13 +842,13 @@ contains
                     ! Read BETA if index is valid
                     if (beta_info%surface_strdata_inputlist_ind > 0) then
                         BETA_FIELD(i,j,iblock) = &
-                            surface_strdata_inputlist_ptr(beta_info%surface_strdata_inputlist_ind)%sdat%avs(beta_info%surface_strdata_var_ind)%rAttr(beta_info%surface_strdata_var_ind, n_idx)
+                            surface_strdata_inputlist_ptr(beta_info%surface_strdata_inputlist_ind)%sdat%avs(1)%rAttr(beta_info%surface_strdata_var_ind, n_idx)
                     endif
-                    
+
                     ! Read ETA if index is valid
                     if (eta_info%surface_strdata_inputlist_ind > 0) then
                         ETA_FIELD(i,j,iblock) = &
-                            surface_strdata_inputlist_ptr(eta_info%surface_strdata_inputlist_ind)%sdat%avs(eta_info%surface_strdata_var_ind)%rAttr(eta_info%surface_strdata_var_ind, n_idx)
+                            surface_strdata_inputlist_ptr(eta_info%surface_strdata_inputlist_ind)%sdat%avs(1)%rAttr(eta_info%surface_strdata_var_ind, n_idx)
                     endif
                     
                    
@@ -944,7 +944,7 @@ contains
                     do i = this_block%ib, this_block%ie
                         n_idx = n_idx + 1
                         tracer_forcing_data(i,j,iblock) = &
-                            surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(forcing_info%surface_strdata_var_ind)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
+                            surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(1)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
 
                     enddo
                 enddo
