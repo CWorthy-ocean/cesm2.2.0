@@ -95,39 +95,39 @@ module antitracer_mod
     type(ind_name_pair), dimension(:), allocatable :: ind_name_table
 
     type antitracer_forcing_info_type
-        character(char_len) :: name
-        integer(int_kind)   :: tracer_local_idx
-        character(char_len) :: filename
-        character(char_len) :: file_varname
-        integer(int_kind)   :: year_first
-        integer(int_kind)   :: year_last
-        integer(int_kind)   :: year_align
-        real(r8)            :: scale_factor
-        integer(int_kind)   :: surface_strdata_inputlist_ind
-        integer(int_kind)   :: surface_strdata_var_ind
+        integer (int_kind) :: tracer_local_idx
+        character (char_len) :: name, filename, file_varname
+        integer (int_kind) :: year_first, year_last, year_align
+        real (r8) :: scale_factor
+        integer (int_kind) :: coupled_alk_idx
+        logical (log_kind) :: is_alk_only
+        integer (int_kind) :: surface_strdata_inputlist_ind
+        integer (int_kind) :: surface_strdata_var_ind
     end type antitracer_forcing_info_type
 
     type(antitracer_forcing_info_type), dimension(:), allocatable :: all_antitracer_forcing_info
 
-    ! beta = carbonate sensitivity to be read in
-    type beta_forcing_nml_type
+    ! Namelist structures
+    type forcing_nml_type
         character(char_len) :: file, varname
         integer(int_kind)   :: year_first, year_last, year_align
-    end type beta_forcing_nml_type
+    end type forcing_nml_type
     
-    type(beta_forcing_nml_type) :: beta_forcing_nml
+    type(forcing_nml_type) :: beta_forcing_nml, eta_forcing_nml
 
-    type beta_stream_info_type
+    ! Stream handles for strdata
+    type stream_info_type
         character(char_len) :: filename, file_varname
         integer(int_kind)   :: year_first, year_last, year_align
         integer(int_kind)   :: surface_strdata_inputlist_ind
         integer(int_kind)   :: surface_strdata_var_ind
-    end type beta_stream_info_type
+    end type stream_info_type
     
-    type(beta_stream_info_type) :: beta_info
+    type(stream_info_type) :: beta_info, eta_info
 
-    ! Module-level storage for the BETA field
+    ! Module-level storage for the BETA and ETA fields
     real(r8), dimension(:,:,:), allocatable :: BETA_FIELD
+    real(r8), dimension(:,:,:), allocatable :: ETA_FIELD
 
 !-----------------------------------------------------------------------
 ! mask that eases avoidance of computation over land
@@ -218,13 +218,15 @@ contains
         character(char_len) :: name, file, varname
         integer(int_kind)   :: year_first, year_last, year_align
         real(r8)            :: scale_factor
+        integer(int_kind)   :: coupled_alk_idx
+        logical(log_kind)   :: is_alk_only
     end type antitracer_forcing_nml_type
 
     type(antitracer_forcing_nml_type), dimension(:), allocatable :: antitracer_forcing_nml_array
 
     namelist /antitracer_nml/ &
       init_antitracer_option, init_antitracer_init_file, init_antitracer_init_file_fmt, &
-      tracer_init_ext, antitracer_forcing_nml_array, beta_forcing_nml
+      tracer_init_ext, antitracer_forcing_nml_array, beta_forcing_nml, eta_forcing_nml
 
 !-----------------------------------------------------------------------
 ! default namelist settings
@@ -254,14 +256,22 @@ contains
       antitracer_forcing_nml_array(n)%year_last    = 2019
       antitracer_forcing_nml_array(n)%year_align   = 347
       antitracer_forcing_nml_array(n)%scale_factor = 1.0e5_r8
+      antitracer_forcing_nml_array(n)%coupled_alk_idx = 0       ! Default: No partner
+      antitracer_forcing_nml_array(n)%is_alk_only     = .false. ! Default: Gas-exchanging
     end do
 
     beta_forcing_nml%file = 'unknown'
     beta_forcing_nml%varname = 'BETA'
-    beta_forcing_nml%year_first   = 1999
-    beta_forcing_nml%year_last    = 2020
-    beta_forcing_nml%year_align   = 347
+    beta_forcing_nml%year_first   = 346
+    beta_forcing_nml%year_last    = 368
+    beta_forcing_nml%year_align   = 346
 
+    eta_forcing_nml%file = 'unknown'
+    eta_forcing_nml%varname = 'ETA'
+    eta_forcing_nml%year_first   = 346
+    eta_forcing_nml%year_last    = 368
+    eta_forcing_nml%year_align   = 346
+    
     if (my_task == master_task) then
        open (nml_in, file=nml_filename, status='old', iostat=nml_error)
        if (nml_error /= 0) then
@@ -299,6 +309,8 @@ contains
       call broadcast_scalar(antitracer_forcing_nml_array(n)%year_last, master_task)
       call broadcast_scalar(antitracer_forcing_nml_array(n)%year_align, master_task)
       call broadcast_scalar(antitracer_forcing_nml_array(n)%scale_factor, master_task)
+      call broadcast_scalar(antitracer_forcing_nml_array(n)%coupled_alk_idx, master_task)
+      call broadcast_scalar(antitracer_forcing_nml_array(n)%is_alk_only, master_task)
     end do
 
     call broadcast_scalar(beta_forcing_nml%file, master_task)
@@ -307,6 +319,12 @@ contains
     call broadcast_scalar(beta_forcing_nml%year_last, master_task)
     call broadcast_scalar(beta_forcing_nml%year_align, master_task)
 
+    call broadcast_scalar(eta_forcing_nml%file, master_task)
+    call broadcast_scalar(eta_forcing_nml%varname, master_task)
+    call broadcast_scalar(eta_forcing_nml%year_first, master_task)
+    call broadcast_scalar(eta_forcing_nml%year_last, master_task)
+    call broadcast_scalar(eta_forcing_nml%year_align, master_task)
+    
     do n = 1, antitracer_tracer_cnt
 
         ! Now populate the rest of the info
@@ -318,17 +336,26 @@ contains
         all_antitracer_forcing_info(n)%year_last        = antitracer_forcing_nml_array(n)%year_last
         all_antitracer_forcing_info(n)%year_align       = antitracer_forcing_nml_array(n)%year_align
         all_antitracer_forcing_info(n)%scale_factor     = antitracer_forcing_nml_array(n)%scale_factor
-
+        all_antitracer_forcing_info(n)%coupled_alk_idx = antitracer_forcing_nml_array(n)%coupled_alk_idx
+        all_antitracer_forcing_info(n)%is_alk_only     = antitracer_forcing_nml_array(n)%is_alk_only
+      
         ! Use the newly constructed name for the name table
         ind_name_table(n) = ind_name_pair(n, all_antitracer_forcing_info(n)%name)
     end do
 
     beta_info%filename    = beta_forcing_nml%file
-    beta_info%file_varname  = beta_forcing_nml%varname
+    beta_info%file_varname = beta_forcing_nml%varname
     beta_info%year_first  = beta_forcing_nml%year_first
     beta_info%year_last   = beta_forcing_nml%year_last
     beta_info%year_align  = beta_forcing_nml%year_align
     beta_info%surface_strdata_inputlist_ind = 0 ! Initialize
+
+    eta_info%filename      = eta_forcing_nml%file
+    eta_info%file_varname  = eta_forcing_nml%varname
+    eta_info%year_first    = eta_forcing_nml%year_first
+    eta_info%year_last     = eta_forcing_nml%year_last
+    eta_info%year_align    = eta_forcing_nml%year_align
+    eta_info%surface_strdata_inputlist_ind = 0 ! Initialize    
 
     if (size(tracer_d_module) < antitracer_tracer_cnt) then
       call exit_POP(sigAbort, 'TRACER_MODULE allocation error in ' // subname)
@@ -446,6 +473,8 @@ contains
 
     allocate(BETA_FIELD(nx_block, ny_block, max_blocks_clinic))
     BETA_FIELD = 1.0_r8 ! Set a default value in case file is not provided
+    allocate(ETA_FIELD(nx_block, ny_block, max_blocks_clinic))
+    ETA_FIELD = 1.0_r8 ! Set a default value in case file is not provided
 
     call get_timer(antitracer_sflux_timer, 'ANTITRACER_SFLUX', 1, distrb_clinic%nprocs)
 
@@ -535,6 +564,13 @@ contains
 
     do n_tracer = 1, antitracer_tracer_cnt
       associate(forcing_info => all_antitracer_forcing_info(n_tracer))
+
+        if (my_task == master_task) then
+           write(*,'(A,I3,A,A)') 'DEBUG: Setup Tracer #', n_tracer, ' Name: ', trim(forcing_info%name)
+           write(*,'(A,A)')      'DEBUG:   File: ', trim(forcing_info%filename)
+           write(*,'(A,A)')      'DEBUG:   Var:  ', trim(forcing_info%file_varname)
+        endif
+        
         call POP_strdata_type_set(surface_strdata_input_var, &
           file_name   = forcing_info%filename, &
           field       = forcing_info%file_varname, &
@@ -576,13 +612,28 @@ contains
 
         forcing_info%surface_strdata_var_ind = POP_strdata_type_field_count( &
           surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind))
+
+        if (my_task == master_task) then
+            write(*,'(A,I3,A,I3)') 'DEBUG:   Mapping -> StreamIdx: ', &
+                 forcing_info%surface_strdata_inputlist_ind, ' VarIdx: ', forcing_info%surface_strdata_var_ind
+        endif          
       end associate
     end do
 
+    
     !===================================================================
     ! SECTION 2: Set up the data stream for the shared BETA field
     !===================================================================
+    if (my_task == master_task) then
+       write(*,*) 'DEBUG: Initializing shared BETA stream...'
+       flush(6)
+    endif
+
     if (trim(beta_info%filename) /= 'unknown') then
+        if (my_task == master_task) then
+           write(*,*) 'DEBUG: BETA file is ', trim(beta_info%filename)
+           flush(6)
+        endif
         call POP_strdata_type_set(surface_strdata_input_var, &
             file_name   = beta_info%filename, &
             field       = beta_info%file_varname, &
@@ -626,7 +677,70 @@ contains
             surface_strdata_inputlist_ptr(beta_info%surface_strdata_inputlist_ind))
     endif
 
+    if (my_task == master_task) then
+       write(*,'(A,I3,A,I3)') 'DEBUG: BETA Mapping -> StreamIdx: ', &
+             beta_info%surface_strdata_inputlist_ind, ' VarIdx: ', beta_info%surface_strdata_var_ind
+    endif
+    !===================================================================
+    ! SECTION 3: Set up the data stream for the shared ETA field
+    !===================================================================
+    if (my_task == master_task) then
+        write(*,*) 'DEBUG: Initializing shared ETA stream...'
+        flush(6)
+    endif
+    
+    if (trim(eta_info%filename) /= 'unknown') then
+        if (my_task == master_task) then
+           write(*,*) 'DEBUG: ETA file is ', trim(eta_info%filename)
+           flush(6)
+        endif
+        call POP_strdata_type_set(surface_strdata_input_var, &
+            file_name   = eta_info%filename, &
+            field       = eta_info%file_varname, &
+            timer_label = 'antitracer_eta_file', &
+            year_first  = eta_info%year_first, &
+            year_last   = eta_info%year_last, & 
+            year_align  = eta_info%year_align, &
+            depth_flag  = .false., &
+            tintalgo    = 'linear', &
+            taxMode     = 'cycle')
 
+        n_strdata_entries = size(surface_strdata_inputlist_ptr)
+        eta_info%surface_strdata_inputlist_ind = 0
+
+        ! Loop through existing streams to find a match (e.g. if ETA is in the same file as BETA)
+        do m = 1, n_strdata_entries
+            if (POP_strdata_type_match(surface_strdata_input_var, surface_strdata_inputlist_ptr(m))) then
+                call POP_strdata_type_append_field(eta_info%file_varname, surface_strdata_inputlist_ptr(m))
+                eta_info%surface_strdata_inputlist_ind = m
+                exit
+            endif
+        end do
+
+        ! If no match was found, create a new stream
+        if (eta_info%surface_strdata_inputlist_ind == 0) then
+          n_strdata_entries = n_strdata_entries + 1
+          allocate(surface_strdata_inputlist_tmp_ptr(n_strdata_entries))
+          if (associated(surface_strdata_inputlist_ptr) .and. size(surface_strdata_inputlist_ptr) > 0) then
+             do m = 1, n_strdata_entries - 1
+                call POP_strdata_type_cp(surface_strdata_inputlist_ptr(m), &
+                                         surface_strdata_inputlist_tmp_ptr(m))
+             end do
+             deallocate(surface_strdata_inputlist_ptr)
+          endif
+          surface_strdata_inputlist_ptr => surface_strdata_inputlist_tmp_ptr
+          call POP_strdata_type_cp(surface_strdata_input_var, surface_strdata_inputlist_ptr(n_strdata_entries))
+          eta_info%surface_strdata_inputlist_ind = n_strdata_entries
+        endif
+
+        eta_info%surface_strdata_var_ind = POP_strdata_type_field_count( &
+            surface_strdata_inputlist_ptr(eta_info%surface_strdata_inputlist_ind))
+    endif
+    
+    if (my_task == master_task) then
+       write(*,'(A,I3,A,I3)') 'DEBUG: ETA Mapping -> StreamIdx: ', &
+             eta_info%surface_strdata_inputlist_ind, ' VarIdx: ', eta_info%surface_strdata_var_ind
+    endif
 !EOC
   end subroutine antitracer_init_sflux
 
@@ -692,26 +806,53 @@ contains
         call POP_strdata_advance(surface_strdata_inputlist_ptr(m))
     end do
 
-    ! Read the shared BETA field once per timestep
-    if (beta_info%surface_strdata_inputlist_ind > 0) then
+    ! Read the shared BETA and ETA fields once per timestep
+    if (beta_info%surface_strdata_inputlist_ind > 0 .or. &
+        eta_info%surface_strdata_inputlist_ind > 0) then
+        
         do iblock = 1, nblocks_clinic
             this_block = get_block(blocks_clinic(iblock), iblock)
             n_idx = 0
             do j = this_block%jb, this_block%je
                 do i = this_block%ib, this_block%ie
                     n_idx = n_idx + 1
-                    BETA_FIELD(i,j,iblock) = &
-                        surface_strdata_inputlist_ptr(beta_info%surface_strdata_inputlist_ind)%sdat%avs(beta_info%surface_strdata_var_ind)%rAttr(beta_info%surface_strdata_var_ind, n_idx)
+
+                    ! Read BETA if index is valid
+                    if (beta_info%surface_strdata_inputlist_ind > 0) then
+                        BETA_FIELD(i,j,iblock) = &
+                            surface_strdata_inputlist_ptr(beta_info%surface_strdata_inputlist_ind)%sdat%avs(beta_info%surface_strdata_var_ind)%rAttr(beta_info%surface_strdata_var_ind, n_idx)
+                    endif
+                    
+                    ! Read ETA if index is valid
+                    if (eta_info%surface_strdata_inputlist_ind > 0) then
+                        ETA_FIELD(i,j,iblock) = &
+                            surface_strdata_inputlist_ptr(eta_info%surface_strdata_inputlist_ind)%sdat%avs(eta_info%surface_strdata_var_ind)%rAttr(eta_info%surface_strdata_var_ind, n_idx)
+                    endif
+                    
+                   
                 enddo
             enddo
         enddo
 
+        if (my_task == master_task) then
+           write(*,*) 'DEBUG: BETA/ETA read complete.'
+           flush(6)
+        endif
+
+    
         call POP_HaloUpdate(BETA_FIELD, POP_haloClinic, &
                             POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 1.0_r8)
         if (errorCode /= POP_Success) then
             call document(subname, 'error updating halo for BETA field')
             call exit_POP(sigAbort, 'Stopping in ' // subname)
         endif
+        call POP_HaloUpdate(ETA_FIELD, POP_haloClinic, &
+                            POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 1.0_r8)
+        if (errorCode /= POP_Success) then
+            call document(subname, 'error updating halo for ETA field')
+            call exit_POP(sigAbort, 'Stopping in ' // subname)
+        endif
+  
     endif
 
 
@@ -758,6 +899,20 @@ contains
     !=======================================================================
     do n_tracer = 1, antitracer_tracer_cnt
         associate(forcing_info => all_antitracer_forcing_info(n_tracer))
+
+            ! --- GATEKEEPER: Skip if no file is provided ---
+            if (trim(forcing_info%filename) == 'unknown' .or. &
+                trim(forcing_info%filename) == '') then
+                
+                forcing_info%surface_strdata_inputlist_ind = 0
+                forcing_info%surface_strdata_var_ind       = 0
+                
+                if (my_task == master_task) then
+                   write(*,*) 'DEBUG: Tracer ', n_tracer, ' is marked unknown. Skipping I/O setup.'
+                   flush(6)
+                endif
+                cycle ! Skip this tracer and move to the next
+            endif
     
             ! a) Get forcing data for THIS tracer into the reusable 3D array
             do iblock = 1, nblocks_clinic
@@ -768,6 +923,7 @@ contains
                         n_idx = n_idx + 1
                         tracer_forcing_data(i,j,iblock) = &
                             surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(forcing_info%surface_strdata_var_ind)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
+
                     enddo
                 enddo
                 ! Accumulate time average for this tracer's forcing
@@ -782,21 +938,50 @@ contains
                 call exit_POP(sigAbort, 'Stopping in ' // subname)
             endif
     
-            ! c) Compute the final flux using the pre-computed PV_field and shared BETA_FIELD
+            ! c) Compute the final flux using the pre-computed PV_field and shared BETA_FIELD and ETA_FIELD
             do iblock = 1, nblocks_clinic
-                where (LAND_MASK(:,:,iblock))
-                    tmp_pv = PV_field(:,:,iblock)
-                    where (BETA_FIELD(:,:,iblock) > 1.0e-10_r8)
-                        tmp_pv = tmp_pv / BETA_FIELD(:,:,iblock)
-                    elsewhere
-                        tmp_pv = 0.0_r8
-                    endwhere
+                do j = 1, ny_block
+                    do i = 1, nx_block
+                        if (LAND_MASK(i,j,iblock)) then
 
-                    STF_MODULE(:,:,n_tracer,iblock) = forcing_info%scale_factor * tracer_forcing_data(:,:,iblock) - &
-                                                      tmp_pv * SURF_VALS(:,:,n_tracer,iblock)
-                elsewhere
-                    STF_MODULE(:,:,n_tracer,iblock) = c0
-                endwhere
+                            if (forcing_info%is_alk_only) then
+                                ! -----------------------------------------------
+                                ! CASE 1: CONSERVATIVE ALK (Forcing only)
+                                ! -----------------------------------------------
+                                STF_MODULE(i,j,n_tracer,iblock) = &
+                                    forcing_info%scale_factor * tracer_forcing_data(i,j,iblock)
+
+                            else
+                                ! -----------------------------------------------
+                                ! CASE 2: DIC (Gas-Exchanging)
+                                ! -----------------------------------------------
+                                ! Calculate local piston velocity scaled by Beta (k/beta)
+                                tmp_pv(i,j) = PV_field(i,j,iblock) / &
+                                              max(BETA_FIELD(i,j,iblock), 1.0e-10_r8)
+
+                                if (forcing_info%coupled_alk_idx > 0) then
+                                    ! SUB-CASE: COUPLED PAIR (OAE/ERW)
+                                    ! STF = Source - (k/beta) * (deltaDIC + eta * deltaALK)
+                                    STF_MODULE(i,j,n_tracer,iblock) = &
+                                        forcing_info%scale_factor * tracer_forcing_data(i,j,iblock) - &
+                                        tmp_pv(i,j) * (SURF_VALS(i,j,n_tracer,iblock) + &
+                                                       ETA_FIELD(i,j,iblock) * &
+                                                       SURF_VALS(i,j,forcing_info%coupled_alk_idx,iblock))
+                                else
+                                    ! SUB-CASE: SOLO DIC (DOR/Standard Deficit)
+                                    ! STF = Source - (k/beta) * deltaDIC
+                                    STF_MODULE(i,j,n_tracer,iblock) = &
+                                        forcing_info%scale_factor * tracer_forcing_data(i,j,iblock) - &
+                                        tmp_pv(i,j) * SURF_VALS(i,j,n_tracer,iblock)
+                                end if
+                            end if
+
+                        else
+                            ! Land points
+                            STF_MODULE(i,j,n_tracer,iblock) = c0
+                        endif
+                    end do
+                end do
             end do
     
         end associate

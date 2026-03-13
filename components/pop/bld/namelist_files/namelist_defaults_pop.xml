@@ -1291,13 +1291,20 @@
 <antitracer_forcing_nml_array(1)%year_last>2019</antitracer_forcing_nml_array(1)%year_last>
 <antitracer_forcing_nml_array(1)%year_align>347</antitracer_forcing_nml_array(1)%year_align>
 <antitracer_forcing_nml_array(1)%scale_factor>1.0e4</antitracer_forcing_nml_array(1)%scale_factor>
-
+<antitracer_forcing_nml_array(1)%coupled_alk_idx>0</antitracer_forcing_nml_array(1)%coupled_alk_idx>
+<antitracer_forcing_nml_array(1)%is_alk_only>.false.</antitracer_forcing_nml_array(1)%is_alk_only>
+    
 <beta_forcing_nml%file>unknown</beta_forcing_nml%file>
 <beta_forcing_nml%varname>BETA</beta_forcing_nml%varname>
-<beta_forcing_nml%year_first>1998</beta_forcing_nml%year_first>
-<beta_forcing_nml%year_last>2020</beta_forcing_nml%year_last>
-<beta_forcing_nml%year_align>347</beta_forcing_nml%year_align>
+<beta_forcing_nml%year_first>346</beta_forcing_nml%year_first>
+<beta_forcing_nml%year_last>368</beta_forcing_nml%year_last>
+<beta_forcing_nml%year_align>346</beta_forcing_nml%year_align>
 
+<eta_forcing_nml%file>unknown</eta_forcing_nml%file>
+<eta_forcing_nml%varname>ETA</eta_forcing_nml%varname>
+<eta_forcing_nml%year_first>346</eta_forcing_nml%year_first>
+<eta_forcing_nml%year_last>368</eta_forcing_nml%year_last>
+<eta_forcing_nml%year_align>346</eta_forcing_nml%year_align>
 <!---------------------------->
 <!--    abio_dic_dic14_nml  -->
 <!---------------------------->

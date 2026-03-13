@@ -5817,6 +5817,25 @@ Default: 1.0e4
 </entry>
 
 <entry
+  id="antitracer_forcing_nml_array%coupled_alk_idx"
+  type="integer(1000)"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Index of the alkalinity tracer to pair with this tracer (0 for none). 
+Required for coupled OAE/ERW equations.
+Default: 0
+</entry>
+
+<entry
+  id="antitracer_forcing_nml_array%is_alk_only"
+  type="logical(1000)"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+If true, this tracer is treated as alkalinity (conservative, no gas exchange).
+Default: .false.
+</entry>
+
+<entry
   id="beta_forcing_nml%file"
   type="char*256"
   category="Passive Tracers (Antitracer BETA)"
@@ -5841,7 +5860,7 @@ Default: 'BETA'
   category="Passive Tracers (Antitracer)"
   group="antitracer_nml" >
 First year in the forcing data stream for the BETA field.
-Default: 1
+Default: 346
 </entry>
 
 <entry
@@ -5850,7 +5869,7 @@ Default: 1
   category="Passive Tracers (Antitracer)"
   group="antitracer_nml" >
 Last year in the forcing data stream for the BETA field.
-Default: 1
+Default: 368
 </entry>
 
 <entry
@@ -5859,9 +5878,54 @@ Default: 1
   category="Passive Tracers (Antitracer)"
   group="antitracer_nml" >
 Align this forcing stream's first year with this model year.
-Default: 1
+Default: 346
 </entry>
 
+<entry
+  id="eta_forcing_nml%file"
+  type="char*256"
+  category="Passive Tracers (Antitracer ETA)"
+  group="antitracer_nml"
+  input_pathname="abs" >
+Path to the forcing file for the ETA sensitivity field (dDIC/dALK).
+Default: 'unknown'
+</entry>
+
+<entry
+  id="eta_forcing_nml%varname"
+  type="char*256"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Variable name within the forcing file for the ETA field.
+Default: 'ETA'
+</entry>
+
+<entry
+  id="eta_forcing_nml%year_first"
+  type="integer"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+First year in the forcing data stream for the ETA field.
+Default: 346
+</entry>
+
+<entry
+  id="eta_forcing_nml%year_last"
+  type="integer"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Last year in the forcing data stream for the ETA field.
+Default: 368
+</entry>
+
+<entry
+  id="eta_forcing_nml%year_align"
+  type="integer"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Align this forcing stream's first year with this model year.
+Default: 346
+</entry>
 <!-- - - - - - - - - - - - - - - - - - -->
 <!-- Group: abio_dic_dic14_nml       - -->
 <!-- - - - - - - - - - - - - - - - - - -->
