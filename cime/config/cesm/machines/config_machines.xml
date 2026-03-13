@@ -2148,14 +2148,14 @@ This allows using a different mpirun command to launch unit tests
         <command name="load">craype-accel-host</command>
         <command name="load">craype/2.7.20</command>
         <command name="load">cray-mpich/8.1.28</command>
-	<command name="load">cray-hdf5</command>
-        <command name="load">cray-netcdf</command>
-        <command name="load">cray-parallel-netcdf</command>
+	<command name="load">cray-hdf5/1.14.3.1</command>
+        <command name="load">cray-netcdf/4.9.0.13</command>
+        <command name="load">cray-parallel-netcdf/1.12.3.13</command>
         <command name="load">cmake/3.24.3</command>
 	<command name="load">cray-libsci/23.02.1.1</command>
 	<command name="load">cray-dsmml/0.2.2</command>	
 	<command name="load">libfabric/1.20.1</command>	
-        <command name="load">evp-patch</command>	
+        <!--  <command name="load">evp-patch</command>	-->
       </modules>
     </module_system>
     <environment_variables>
