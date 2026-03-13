@@ -5817,6 +5817,24 @@ Default: 1.0e4
 </entry>
 
 <entry
+id="antitracer_forcing_nml_array%tintalgo"
+type="char*256(1000)"
+category="Passive Tracers (Antitracer)"
+group="antitracer_nml" >
+Temporal interpolation algorithm for each antitracer forcing stream (e.g., 'linear', 'nearest').
+Default: 'linear'
+</entry>
+
+<entry
+id="antitracer_forcing_nml_array%taxMode"
+type="char*256(1000)"
+category="Passive Tracers (Antitracer)"
+group="antitracer_nml" >
+Time axis mode for each antitracer forcing stream (e.g., 'cycle', 'extend').
+Default: 'cycle'
+</entry>
+
+<entry
   id="antitracer_forcing_nml_array%coupled_alk_idx"
   type="integer(1000)"
   category="Passive Tracers (Antitracer)"
@@ -5852,6 +5870,24 @@ Default: 'unknown'
   group="antitracer_nml" >
 Variable name within the forcing file for the BETA field.
 Default: 'BETA'
+</entry>
+
+<entry
+  id="beta_forcing_nml%tintalgo"
+  type="char*256"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Temporal interpolation algorithm for the BETA forcing stream (e.g., 'linear', 'nearest').
+Default: 'linear'
+</entry>
+
+<entry
+  id="beta_forcing_nml%taxMode"
+  type="char*256"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Time axis mode for the BETA forcing stream (e.g., 'cycle', 'extend').
+Default: 'cycle'
 </entry>
 
 <entry
@@ -5898,6 +5934,24 @@ Default: 'unknown'
   group="antitracer_nml" >
 Variable name within the forcing file for the ETA field.
 Default: 'ETA'
+</entry>
+
+<entry
+  id="eta_forcing_nml%tintalgo"
+  type="char*256"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Temporal interpolation algorithm for the ETA forcing stream (e.g., 'linear', 'nearest').
+Default: 'linear'
+</entry>
+
+<entry
+  id="eta_forcing_nml%taxMode"
+  type="char*256"
+  category="Passive Tracers (Antitracer)"
+  group="antitracer_nml" >
+Time axis mode for the ETA forcing stream (e.g., 'cycle', 'extend').
+Default: 'cycle'
 </entry>
 
 <entry

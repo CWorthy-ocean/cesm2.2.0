@@ -98,6 +98,7 @@ module antitracer_mod
         integer (int_kind) :: tracer_local_idx
         character (char_len) :: name, filename, file_varname
         integer (int_kind) :: year_first, year_last, year_align
+        character (char_len) :: tintalgo, taxMode
         real (r8) :: scale_factor
         integer (int_kind) :: coupled_alk_idx
         logical (log_kind) :: is_alk_only
@@ -111,6 +112,7 @@ module antitracer_mod
     type forcing_nml_type
         character(char_len) :: file, varname
         integer(int_kind)   :: year_first, year_last, year_align
+        character(char_len) :: tintalgo, taxMode
     end type forcing_nml_type
     
     type(forcing_nml_type) :: beta_forcing_nml, eta_forcing_nml
@@ -119,6 +121,7 @@ module antitracer_mod
     type stream_info_type
         character(char_len) :: filename, file_varname
         integer(int_kind)   :: year_first, year_last, year_align
+        character(char_len) :: tintalgo, taxMode
         integer(int_kind)   :: surface_strdata_inputlist_ind
         integer(int_kind)   :: surface_strdata_var_ind
     end type stream_info_type
@@ -217,6 +220,7 @@ contains
     type antitracer_forcing_nml_type
         character(char_len) :: name, file, varname
         integer(int_kind)   :: year_first, year_last, year_align
+        character(char_len) :: tintalgo, taxMode
         real(r8)            :: scale_factor
         integer(int_kind)   :: coupled_alk_idx
         logical(log_kind)   :: is_alk_only
@@ -258,6 +262,8 @@ contains
       antitracer_forcing_nml_array(n)%scale_factor = 1.0e5_r8
       antitracer_forcing_nml_array(n)%coupled_alk_idx = 0       ! Default: No partner
       antitracer_forcing_nml_array(n)%is_alk_only     = .false. ! Default: Gas-exchanging
+      antitracer_forcing_nml_array(n)%tintalgo         = 'linear'
+      antitracer_forcing_nml_array(n)%taxMode          = 'cycle'
     end do
 
     beta_forcing_nml%file = 'unknown'
@@ -265,12 +271,16 @@ contains
     beta_forcing_nml%year_first   = 346
     beta_forcing_nml%year_last    = 368
     beta_forcing_nml%year_align   = 346
+    beta_forcing_nml%tintalgo     = 'linear'
+    beta_forcing_nml%taxMode      = 'cycle'
 
     eta_forcing_nml%file = 'unknown'
     eta_forcing_nml%varname = 'ETA'
     eta_forcing_nml%year_first   = 346
     eta_forcing_nml%year_last    = 368
     eta_forcing_nml%year_align   = 346
+    eta_forcing_nml%tintalgo     = 'linear'
+    eta_forcing_nml%taxMode      = 'cycle'
     
     if (my_task == master_task) then
        open (nml_in, file=nml_filename, status='old', iostat=nml_error)
@@ -311,6 +321,8 @@ contains
       call broadcast_scalar(antitracer_forcing_nml_array(n)%scale_factor, master_task)
       call broadcast_scalar(antitracer_forcing_nml_array(n)%coupled_alk_idx, master_task)
       call broadcast_scalar(antitracer_forcing_nml_array(n)%is_alk_only, master_task)
+      call broadcast_scalar(antitracer_forcing_nml_array(n)%tintalgo, master_task)
+      call broadcast_scalar(antitracer_forcing_nml_array(n)%taxMode, master_task)
     end do
 
     call broadcast_scalar(beta_forcing_nml%file, master_task)
@@ -318,12 +330,16 @@ contains
     call broadcast_scalar(beta_forcing_nml%year_first, master_task)
     call broadcast_scalar(beta_forcing_nml%year_last, master_task)
     call broadcast_scalar(beta_forcing_nml%year_align, master_task)
+    call broadcast_scalar(beta_forcing_nml%tintalgo, master_task)
+    call broadcast_scalar(beta_forcing_nml%taxMode, master_task)
 
     call broadcast_scalar(eta_forcing_nml%file, master_task)
     call broadcast_scalar(eta_forcing_nml%varname, master_task)
     call broadcast_scalar(eta_forcing_nml%year_first, master_task)
     call broadcast_scalar(eta_forcing_nml%year_last, master_task)
     call broadcast_scalar(eta_forcing_nml%year_align, master_task)
+    call broadcast_scalar(eta_forcing_nml%tintalgo, master_task)
+    call broadcast_scalar(eta_forcing_nml%taxMode, master_task)
     
     do n = 1, antitracer_tracer_cnt
 
@@ -335,6 +351,8 @@ contains
         all_antitracer_forcing_info(n)%year_first       = antitracer_forcing_nml_array(n)%year_first
         all_antitracer_forcing_info(n)%year_last        = antitracer_forcing_nml_array(n)%year_last
         all_antitracer_forcing_info(n)%year_align       = antitracer_forcing_nml_array(n)%year_align
+        all_antitracer_forcing_info(n)%tintalgo         = antitracer_forcing_nml_array(n)%tintalgo
+        all_antitracer_forcing_info(n)%taxMode          = antitracer_forcing_nml_array(n)%taxMode
         all_antitracer_forcing_info(n)%scale_factor     = antitracer_forcing_nml_array(n)%scale_factor
         all_antitracer_forcing_info(n)%coupled_alk_idx = antitracer_forcing_nml_array(n)%coupled_alk_idx
         all_antitracer_forcing_info(n)%is_alk_only     = antitracer_forcing_nml_array(n)%is_alk_only
@@ -348,6 +366,8 @@ contains
     beta_info%year_first  = beta_forcing_nml%year_first
     beta_info%year_last   = beta_forcing_nml%year_last
     beta_info%year_align  = beta_forcing_nml%year_align
+    beta_info%tintalgo    = beta_forcing_nml%tintalgo
+    beta_info%taxMode     = beta_forcing_nml%taxMode
     beta_info%surface_strdata_inputlist_ind = 0 ! Initialize
 
     eta_info%filename      = eta_forcing_nml%file
@@ -355,6 +375,8 @@ contains
     eta_info%year_first    = eta_forcing_nml%year_first
     eta_info%year_last     = eta_forcing_nml%year_last
     eta_info%year_align    = eta_forcing_nml%year_align
+    eta_info%tintalgo      = eta_forcing_nml%tintalgo
+    eta_info%taxMode       = eta_forcing_nml%taxMode
     eta_info%surface_strdata_inputlist_ind = 0 ! Initialize    
 
     if (size(tracer_d_module) < antitracer_tracer_cnt) then
@@ -579,8 +601,8 @@ contains
           year_last   = forcing_info%year_last, &
           year_align  = forcing_info%year_align, &
           depth_flag  = .false., &
-          tintalgo    = 'linear', &
-          taxMode     = 'cycle')
+          tintalgo    = forcing_info%tintalgo, &
+          taxMode     = forcing_info%taxMode)
 
         n_strdata_entries = size(surface_strdata_inputlist_ptr)
         forcing_info%surface_strdata_inputlist_ind = 0
@@ -642,8 +664,8 @@ contains
             year_last   = beta_info%year_last, & 
             year_align  = beta_info%year_align, &
             depth_flag  = .false., &
-            tintalgo    = 'linear', &
-            taxMode     = 'cycle')
+            tintalgo    = beta_info%tintalgo, &
+            taxMode     = beta_info%taxMode)
 
         n_strdata_entries = size(surface_strdata_inputlist_ptr)
         beta_info%surface_strdata_inputlist_ind = 0
@@ -702,8 +724,8 @@ contains
             year_last   = eta_info%year_last, & 
             year_align  = eta_info%year_align, &
             depth_flag  = .false., &
-            tintalgo    = 'linear', &
-            taxMode     = 'cycle')
+            tintalgo    = eta_info%tintalgo, &
+            taxMode     = eta_info%taxMode)
 
         n_strdata_entries = size(surface_strdata_inputlist_ptr)
         eta_info%surface_strdata_inputlist_ind = 0
