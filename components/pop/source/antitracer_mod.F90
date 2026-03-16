@@ -592,7 +592,19 @@ contains
            write(*,'(A,A)')      'DEBUG:   File: ', trim(forcing_info%filename)
            write(*,'(A,A)')      'DEBUG:   Var:  ', trim(forcing_info%file_varname)
         endif
-        
+
+        ! --- GATEKEEPER: Skip stream setup if no forcing file is provided (e.g. OAE DIC tracer) ---
+        if (trim(forcing_info%filename) == 'unknown' .or. &
+            trim(forcing_info%filename) == '') then
+            forcing_info%surface_strdata_inputlist_ind = 0
+            forcing_info%surface_strdata_var_ind       = 0
+            if (my_task == master_task) then
+               write(*,*) 'DEBUG: Tracer ', n_tracer, ' has no forcing file. Skipping stream setup.'
+               flush(6)
+            endif
+            cycle
+        endif
+
         call POP_strdata_type_set(surface_strdata_input_var, &
           file_name   = forcing_info%filename, &
           field       = forcing_info%file_varname, &
