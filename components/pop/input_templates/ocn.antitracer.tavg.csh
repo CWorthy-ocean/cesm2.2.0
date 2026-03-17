@@ -3,8 +3,9 @@
 #------------------------------------------------------------------------------------
 # This script generates the antitracer_tavg_contents file for POP.
 #
-# It reads a list of master indices from antitracer_indices.txt and uses
-# them to generate the specific tavg variable names (e.g., ANTITRACER007).
+# It reads DIC and ALK master indices from antitracer_indices_dic.txt and
+# antitracer_indices_alk.txt and generates the appropriate tavg variable names
+# (e.g., DELTADIC007, DELTAALK007).
 #------------------------------------------------------------------------------------
 
 @ my_stream = $1
@@ -15,17 +16,22 @@ endif
 
 @ s1 = 1  # Use base-model stream 1
 
-set indices_file = "$CASEROOT/antitracer_indices.txt"
+set dic_indices_file = "$CASEROOT/antitracer_indices_dic.txt"
+set alk_indices_file = "$CASEROOT/antitracer_indices_alk.txt"
 set output_file = "$CASEROOT/Buildconf/popconf/antitracer_tavg_contents"
 
-# Check that the file containing the master indices exists
-if (! -e ${indices_file}) then
-    echo "Error: Required index file not found at ${indices_file}"
+if (! -e ${dic_indices_file}) then
+    echo "Error: Required index file not found at ${dic_indices_file}"
     exit 7
 endif
 
-# Read the space-separated master indices from the file into an array
-set master_indices = `cat ${indices_file}`
+if (! -e ${alk_indices_file}) then
+    echo "Error: Required index file not found at ${alk_indices_file}"
+    exit 7
+endif
+
+set dic_indices = `cat ${dic_indices_file}`
+set alk_indices = `cat ${alk_indices_file}`
 
 # Create the file and write the tracer-independent diagnostics
 cat >! ${output_file} << EOF
@@ -36,12 +42,20 @@ $s1  ANTITRACER_SCHMIDT
 $s1  ANTITRACER_PV
 EOF
 
-# Loop through the master indices and append the tracer-specific variables
-foreach index ($master_indices)
-  # Format the index to have three digits with leading zeros (e.g., 7 -> 007)
-  set padded_index = `printf "%03d" $index`
+if ($#dic_indices > 0) then
+  foreach index ($dic_indices)
+    set padded_index = `printf "%03d" $index`
+    echo "$s1  DELTADIC${padded_index}"          >> ${output_file}
+    echo "$s1  DELTADIC${padded_index}_FORCING"  >> ${output_file}
+    echo "$s1  STF_DELTADIC${padded_index}"      >> ${output_file}
+  end
+endif
 
-  echo "$s1  ANTITRACER${padded_index}"           >> ${output_file}
-  echo "$s1  ANTITRACER${padded_index}_FORCING"  >> ${output_file}
-  echo "$s1  STF_ANTITRACER${padded_index}"      >> ${output_file}
-end
+if ($#alk_indices > 0) then
+  foreach index ($alk_indices)
+    set padded_index = `printf "%03d" $index`
+    echo "$s1  DELTAALK${padded_index}"          >> ${output_file}
+    echo "$s1  DELTAALK${padded_index}_FORCING"  >> ${output_file}
+    echo "$s1  STF_DELTAALK${padded_index}"      >> ${output_file}
+  end
+endif
