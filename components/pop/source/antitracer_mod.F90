@@ -934,42 +934,33 @@ contains
     do n_tracer = 1, antitracer_tracer_cnt
         associate(forcing_info => all_antitracer_forcing_info(n_tracer))
 
-            ! --- GATEKEEPER: Skip if no file is provided ---
+            ! a) Get forcing data for THIS tracer (or use zero if no file provided)
             if (trim(forcing_info%filename) == 'unknown' .or. &
                 trim(forcing_info%filename) == '') then
-                
-                forcing_info%surface_strdata_inputlist_ind = 0
-                forcing_info%surface_strdata_var_ind       = 0
-                
-                if (my_task == master_task) then
-                   write(*,*) 'DEBUG: Tracer ', n_tracer, ' is marked unknown. Skipping I/O setup.'
-                   flush(6)
-                endif
-                cycle ! Skip this tracer and move to the next
-            endif
-    
-            ! a) Get forcing data for THIS tracer into the reusable 3D array
-            do iblock = 1, nblocks_clinic
-                this_block = get_block(blocks_clinic(iblock), iblock)
-                n_idx = 0
-                do j = this_block%jb, this_block%je
-                    do i = this_block%ib, this_block%ie
-                        n_idx = n_idx + 1
-                        tracer_forcing_data(i,j,iblock) = &
-                            surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(1)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
-
+                ! No source forcing (e.g. OAE DIC tracer): zero source, gas exchange still runs below
+                tracer_forcing_data(:,:,:) = c0
+            else
+                do iblock = 1, nblocks_clinic
+                    this_block = get_block(blocks_clinic(iblock), iblock)
+                    n_idx = 0
+                    do j = this_block%jb, this_block%je
+                        do i = this_block%ib, this_block%ie
+                            n_idx = n_idx + 1
+                            tracer_forcing_data(i,j,iblock) = &
+                                surface_strdata_inputlist_ptr(forcing_info%surface_strdata_inputlist_ind)%sdat%avs(1)%rAttr(forcing_info%surface_strdata_var_ind, n_idx)
+                        enddo
                     enddo
-                enddo
-                ! Accumulate time average for this tracer's forcing
-                call accumulate_tavg_field(forcing_info%scale_factor * tracer_forcing_data(:,:,iblock), tavg_ANTITRACER_FORCING(n_tracer), iblock, 1)
-            end do
-    
-            ! b) Apply halo update to THIS tracer's forcing data
-            call POP_HaloUpdate(tracer_forcing_data, POP_haloClinic, &
-                                POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 0.0_r8)
-            if (errorCode /= POP_Success) then
-                call document(subname, 'error updating halo for antitracer forcing field')
-                call exit_POP(sigAbort, 'Stopping in ' // subname)
+                    ! Accumulate time average for this tracer's forcing
+                    call accumulate_tavg_field(forcing_info%scale_factor * tracer_forcing_data(:,:,iblock), tavg_ANTITRACER_FORCING(n_tracer), iblock, 1)
+                end do
+
+                ! b) Apply halo update to THIS tracer's forcing data
+                call POP_HaloUpdate(tracer_forcing_data, POP_haloClinic, &
+                                    POP_gridHorzLocCenter, POP_fieldKindScalar, errorCode, fillValue = 0.0_r8)
+                if (errorCode /= POP_Success) then
+                    call document(subname, 'error updating halo for antitracer forcing field')
+                    call exit_POP(sigAbort, 'Stopping in ' // subname)
+                endif
             endif
     
             ! c) Compute the final flux using the pre-computed PV_field and shared BETA_FIELD and ETA_FIELD
