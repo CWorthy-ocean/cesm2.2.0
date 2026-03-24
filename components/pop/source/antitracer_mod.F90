@@ -989,7 +989,7 @@ contains
                                     ! STF = Source - (k/beta) * (deltaDIC + eta * deltaALK)
                                     STF_MODULE(i,j,n_tracer,iblock) = &
                                         forcing_info%scale_factor * tracer_forcing_data(i,j,iblock) - &
-                                        tmp_pv(i,j) * (SURF_VALS(i,j,n_tracer,iblock) + &
+                                        tmp_pv(i,j) * (SURF_VALS(i,j,n_tracer,iblock) - &
                                                        ETA_FIELD(i,j,iblock) * &
                                                        SURF_VALS(i,j,forcing_info%coupled_alk_idx,iblock))
                                 else
