@@ -11,6 +11,20 @@ DO NOT RUN THIS SCRIPT MANUALLY
 """
 
 import os, sys
+
+# Pin Intel 2023.2 NetCDF/compiler libraries before any srun call.
+# Perlmutter CPE upgrades (e.g. 23.12→25.09) cause CRAY_LD_LIBRARY_PATH to
+# prepend newer incompatible libnetcdff_intel.so at srun time, producing a
+# SIGSEGV on rank 1 in nf90_inq_varid during restart reads.
+os.environ.pop("CRAY_LD_LIBRARY_PATH", None)
+_pin_libs = ":".join([
+    "/opt/cray/pe/netcdf/4.9.0.13/intel/2023.2/lib",
+    "/opt/cray/pe/parallel-netcdf/1.12.3.13/intel/2023.2/lib",
+    "/opt/intel/oneapi/mkl/2023.2.0/lib/intel64",
+    "/opt/intel/oneapi/compiler/2023.2.0/linux/compiler/lib/intel64",
+])
+os.environ["LD_LIBRARY_PATH"] = _pin_libs + ":" + os.environ.get("LD_LIBRARY_PATH", "")
+
 os.chdir( '{{ caseroot }}')
 
 _LIBDIR = os.path.join("{{ cimeroot }}", "scripts", "Tools")
